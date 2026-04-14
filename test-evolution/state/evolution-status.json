@@ -1,0 +1,5 @@
+{
+  "phase_0_self_discovery": { "status": "pending", "tasks_completed": 0, "tasks_total": 7 },
+  "phase_1_seed_processing": { "status": "pending", "tasks_completed": 0, "tasks_total": 5 },
+  "overall_complete": false
+}

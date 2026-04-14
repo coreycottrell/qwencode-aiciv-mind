@@ -1,0 +1,21 @@
+[Desktop Entry]
+Name=Launch CIV
+Comment=Launch Primary AI in tmux (generic fork template)
+Exec=gnome-terminal -- bash -c "$(dirname $(readlink -f %k))/../tools/launch_civ_tower.sh"
+Icon=utilities-terminal
+Terminal=false
+Type=Application
+Categories=Development;
+
+# NOTE: .desktop files do NOT support shell variable expansion in Name/Comment fields.
+# After forking this template, substitute the civilization name manually:
+#
+#   sed -i 's/Launch CIV/Launch MyAwesomeCiv/g' tools/Launch-CIV.desktop
+#   sed -i 's/Launch Primary AI in tmux (generic fork template)/Launch MyAwesomeCiv Primary AI in tmux/g' tools/Launch-CIV.desktop
+#
+# The Exec line uses %k (path to this .desktop file) to locate launch_civ_tower.sh
+# automatically — no hardcoded path needed there.
+#
+# To install this launcher for the current user:
+#   cp tools/Launch-CIV.desktop ~/.local/share/applications/
+#   update-desktop-database ~/.local/share/applications/

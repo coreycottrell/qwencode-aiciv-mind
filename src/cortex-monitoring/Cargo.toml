@@ -1,0 +1,20 @@
+[package]
+name = "cortex-monitoring"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# Internal
+codex-llm = { workspace = true }
+codex-exec = { workspace = true }
+codex-memory = { workspace = true }
+codex-redteam = { workspace = true }
+codex-fitness = { workspace = true }
+
+# External
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true }

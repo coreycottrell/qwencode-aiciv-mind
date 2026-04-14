@@ -1,0 +1,4 @@
+# Test File
+This is a test file for battle test 7.
+It has a few lines of content.
+MODIFICATION: Added this line to prove write-back capability.

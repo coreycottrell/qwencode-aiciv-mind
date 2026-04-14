@@ -1,0 +1,25 @@
+[package]
+name = "codex-llm"
+description = "LLM integration — Ollama chat completions with tool use for Cortex."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+codex-roles = { workspace = true }
+codex-exec = { workspace = true }
+codex-memory = { workspace = true }
+codex-redteam = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+tempfile = "3"

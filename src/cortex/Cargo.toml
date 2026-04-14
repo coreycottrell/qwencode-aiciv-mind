@@ -1,0 +1,91 @@
+[package]
+name = "cortex"
+description = "Cortex — the fractal coordination engine. Primary mind entry point."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "cortex"
+path = "src/main.rs"
+
+[[bin]]
+name = "live_cloud"
+path = "src/bin/live_cloud.rs"
+
+[[bin]]
+name = "multi_turn"
+path = "src/bin/multi_turn.rs"
+
+[[bin]]
+name = "cortex_chat"
+path = "src/bin/chat.rs"
+
+[[bin]]
+name = "persistence_proof"
+path = "src/bin/persistence_proof.rs"
+
+[[bin]]
+name = "dream_proof"
+path = "src/bin/dream_proof.rs"
+
+[[bin]]
+name = "parallel_leads"
+path = "src/bin/parallel_leads.rs"
+
+[[bin]]
+name = "hub_citizen"
+path = "src/bin/hub_citizen.rs"
+
+[[bin]]
+name = "hub_write_proof"
+path = "src/bin/hub_write_proof.rs"
+
+[[bin]]
+name = "inter_mind_proof"
+path = "src/bin/inter_mind_proof.rs"
+
+[[bin]]
+name = "evolution_proof"
+path = "src/bin/evolution_proof.rs"
+
+[[bin]]
+name = "evolution_full"
+path = "src/bin/evolution_full.rs"
+
+[[bin]]
+name = "cortex-codex"
+path = "src/bin/cortex-codex.rs"
+
+[dependencies]
+codex-roles = { workspace = true }
+codex-coordination = { workspace = true }
+codex-fitness = { workspace = true }
+codex-redteam = { workspace = true }
+codex-dream = { workspace = true }
+codex-drive = { workspace = true }
+codex-types = { workspace = true }
+codex-transfer = { workspace = true }
+codex-suite-client = { workspace = true }
+codex-memory = { workspace = true }
+codex-exec = { workspace = true }
+codex-ipc = { workspace = true }
+codex-llm = { workspace = true }
+codex-patcher = { workspace = true }
+cortex-monitoring = { workspace = true }
+anyhow = "1"
+reqwest = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+chrono = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+futures = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

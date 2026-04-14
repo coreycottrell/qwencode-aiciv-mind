@@ -1,0 +1,4 @@
+{
+  "agents": {},
+  "notes": "Agent registry grows as agents are spawned. See .claude/agents/ for manifests."
+}

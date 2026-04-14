@@ -1,0 +1,22 @@
+[package]
+name = "codex-dream"
+description = "Dream Mode — nightly review, pattern search, deliberate forgetting, self-improvement"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+codex-fitness = { workspace = true }
+codex-llm = { workspace = true }
+codex-memory = { workspace = true }
+codex-roles = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }

@@ -1,0 +1,25 @@
+[package]
+name = "codex-coordination"
+description = "Fractal coordination engine — MindManager, CoordinatorLoop, InputMux"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+codex-roles = { workspace = true }
+codex-fitness = { workspace = true }
+codex-ipc = { workspace = true }
+codex-drive = { workspace = true }
+codex-types = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+async-trait = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+tempfile = "3"

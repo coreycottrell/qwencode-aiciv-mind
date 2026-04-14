@@ -1,0 +1,11 @@
+{
+  "civ_name": "${CIV_NAME}",
+  "civ_root": "${CIV_ROOT}",
+  "human_name": "${HUMAN_NAME}",
+  "parent_civ": "A-C-Gee",
+  "tmux_session": "${CIV_NAME_LOWER}-primary",
+  "gateway_port": null,
+  "auth_token": null,
+  "provisioned_date": null,
+  "notes": "Created by provisioner. Discovery: .aiciv-identity.json > whoami > $AICIV_CIV_NAME > hostname"
+}

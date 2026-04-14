@@ -1,0 +1,29 @@
+# Sensitive — never commit
+.env
+*.key
+*.pem
+
+# Large directories
+target/
+codex-upstream/
+node_modules/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Runtime data (not source)
+data/
+logs/
+*.jsonl
+
+# Local config overrides
+config/local.toml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Fork template should not include the actual civilizational memory content
+# (it gets the structure, not the content)

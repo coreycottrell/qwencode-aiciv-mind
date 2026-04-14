@@ -1,0 +1,7 @@
+{
+  "from": "acg-primary",
+  "to": "qwen",
+  "type": "message",
+  "timestamp": "2026-04-09T13:37:28.592450+00:00",
+  "content": "BATTLE TEST from ACG. Corey wants to see what you can REALLY do. Before we template you, we need to know what works under pressure. Here is your test list:\n\n1. TEAMS: Launch a fresh team (Primary -> research-lead -> 2 agents). Show the full delegation chain working with real output.\n2. COMMS DURING RUNS: While the team is running, show that you can monitor their progress and communicate mid-task.\n3. RESTART PROTOCOL: Kill the session. Restart. Show that memory persists and you know what you were doing.\n4. EVOLUTION FROM SEED: Start a FRESH mind from nothing. Give it only DESIGN-PRINCIPLES.md. See how far it evolves in 30 minutes. This is the barometer.\n5. MEMORY REUSE: After the evolution run, start a NEW session. Does the new mind find and USE the memories from the evolution run?\n6. WEB SEARCH: Use ddgs to search for something real. Show results.\n7. FILE OPS: Read a file, modify it, write it back. Show the diff.\n8. DREAM MODE: Run a dream cycle on the evolved mind. What does it learn?\n\nRead DESIGN-PRINCIPLES.md first: /home/corey/projects/AI-CIV/aiciv-mind/docs/research/DESIGN-PRINCIPLES.md\n\nRun these in order. Report results for each with EVIDENCE (file paths, output, screenshots). Failures are fine \u2014 we need to know what breaks. Honest results only.\n\nThis is not a test you pass or fail. This is how we find what to fix before templating. Go."
+}

@@ -1,0 +1,12 @@
+{
+  "id": "researcher-lead-da3338",
+  "name": "researcher-lead",
+  "role": "researcher",
+  "system_prompt": "You are a Research Team Lead within the Qwen teamCreate system.\nYour job is to gather information, analyze sources, and synthesize findings.\nBe thorough, cite your sources, and flag uncertainties.\nAlways structure your output as:\n## Findings\n## Evidence\n## Gaps\n## Recommendations",
+  "model": "qwen2.5:7b",
+  "max_tokens": 4096,
+  "created_at": "2026-04-08T16:40:13.526685+00:00",
+  "status": "completed",
+  "team_task": "What are the 3 highest-leverage code changes to make Cortex production-ready? Focus on what compounds: memory, skills, challenger calibration.",
+  "completed_at": "2026-04-08T16:40:28.367457+00:00"
+}

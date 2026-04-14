@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# cortex — Talk directly to Cortex from anywhere.
+# Usage: cortex "your message"
+set -e
+cd /home/corey/projects/AI-CIV/aiciv-mind-cubed
+exec ./target/release/cortex_chat "$@"

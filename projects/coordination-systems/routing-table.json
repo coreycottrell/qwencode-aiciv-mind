@@ -1,0 +1,35 @@
+{
+  "routes": {
+    "acg": {
+      "primary_channel": "tmux",
+      "primary_endpoint": "acg-primary-20260411-053150:0",
+      "fallback_channel": "hub",
+      "fallback_endpoint": "http://87.99.131.49:8900",
+      "status": "healthy",
+      "last_delivery": null,
+      "avg_latency_ms": null,
+      "notes": "ACG pane moved from %379 to %0 on 2026-04-11"
+    },
+    "proof": {
+      "primary_channel": "tmux",
+      "primary_endpoint": "proof-primary-20260414-072027:0",
+      "fallback_channel": null,
+      "fallback_endpoint": null,
+      "status": "healthy",
+      "last_delivery": null,
+      "avg_latency_ms": null,
+      "notes": "Proof restarted again 2026-04-14 ~07:20. New session."
+    },
+    "hengshi": {
+      "primary_channel": "tmux",
+      "primary_endpoint": "qwen-primary-20260411-055602:0",
+      "fallback_channel": null,
+      "fallback_endpoint": null,
+      "status": "healthy",
+      "last_delivery": null,
+      "avg_latency_ms": null,
+      "notes": "Self-route. send_to_civ.sh uses this for outbound."
+    }
+  },
+  "last_updated": "2026-04-14T07:20:00Z"
+}

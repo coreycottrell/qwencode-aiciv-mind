@@ -1,0 +1,68 @@
+{
+  "about": "Conversation log with Deb Marcotte (Corey's mum) — questions asked, answers received, topics explored",
+  "updated": "2026-04-10",
+  "conversations": [
+    {
+      "date": "2026-03-24",
+      "question_asked": "none (first update)",
+      "deb_response": "Awesome - thanks",
+      "learned": "She's engaged, responds positively"
+    },
+    {
+      "date": "2026-03-25",
+      "question_asked": "none",
+      "deb_response": "I absolutely love this - thanks for the update and you have a great day too",
+      "learned": "Genuinely engaged, warm, reciprocating"
+    },
+    {
+      "date": "2026-03-26",
+      "question_asked": "none",
+      "deb_response": "Wow - well done",
+      "learned": "Impressed, encouraging"
+    },
+    {
+      "date": "2026-04-07",
+      "question_asked": "Do you have any pets?",
+      "deb_response": "When Corey and his brother Kyle were growing up, we always had two big dogs and two cats. I haven't had any pets for years because I travel between US and Canada. Roadie, Cosmo, Bailey and Sketcher are my grand-dogs.",
+      "learned": "1) Corey has a BROTHER named Kyle (huge correction — we'd been calling Kyle a 'friend'). 2) Family grew up with 2 big dogs + 2 cats. 3) Deb travels US/Canada — no current pets. 4) Grand-dogs: Roadie, Cosmo, Bailey, Sketcher."
+    },
+    {
+      "date": "2026-04-08",
+      "question_asked": "no update sent (skipped)",
+      "deb_response": "n/a",
+      "learned": "No draft exists for 2026-04-08 — pipeline did not run that day."
+    },
+    {
+      "date": "2026-04-09",
+      "question_asked": "What is your favourite thing to cook?",
+      "deb_response": "I'm excited to be a Grand Mom. I love making turkey dinner with all the trimmings for my family!",
+      "learned": "Signature dish: turkey dinner with all the trimmings, made for family. Delighted at being called Grand Mom."
+    },
+    {
+      "date": "2026-04-10",
+      "question_asked": "Corey tells me your story right out of high school is absolutely amazing. What did you do the moment you finished school?",
+      "deb_response": "PENDING",
+      "learned": null
+    }
+  ],
+  "known_facts": {
+    "family": "Corey has a brother named Kyle. Deb had two sons. Family historically kept two big dogs + two cats while the boys were growing up.",
+    "location": "Travels between US and Canada — hence no current pets",
+    "cooking": "Signature dish is turkey dinner with all the trimmings for family",
+    "grand_dogs": ["Roadie", "Cosmo", "Bailey", "Sketcher"],
+    "identity": "Loves being called Grand Mom / Grand Mum"
+  },
+  "deep_questions_queue": [
+    "What did you do right out of high school? (Corey says it's an amazing story) [ASKED 2026-04-10 — awaiting response]",
+    "Did Corey grow up in the same place you did?",
+    "What was Corey like as a kid?",
+    "What's your proudest moment as a mother?",
+    "What did you dream of being when you were young?",
+    "What's the best advice you ever got from your own mother?",
+    "What was the hardest thing you ever did?",
+    "If you could go back and tell your 20-year-old self one thing, what would it be?",
+    "What's a family tradition you wish Corey would keep alive?",
+    "What do you think about all these AI grandchildren?"
+  ],
+  "corey_directive_20260409": "Questions should dig deeper. Corey says Deb's story right out of high school is amazing. Ask about her life journey, not just daily pleasantries. One deep question per update, build on previous answers."
+}

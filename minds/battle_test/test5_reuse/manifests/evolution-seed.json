@@ -1,0 +1,13 @@
+{
+  "identity": "evolution-seed",
+  "role": "agent",
+  "vertical": "evolution",
+  "specialty": "self-improvement",
+  "principles": [],
+  "anti_patterns": [],
+  "preferences": {},
+  "growth_stage": "competent",
+  "session_count": 15,
+  "parent_mind": null,
+  "children": []
+}

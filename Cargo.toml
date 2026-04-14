@@ -1,0 +1,66 @@
+[workspace]
+members = [
+    "src/codex-types",
+    "src/codex-roles",
+    "src/codex-coordination",
+    "src/codex-fitness",
+    "src/codex-redteam",
+    "src/codex-dream",
+    "src/codex-transfer",
+    "src/codex-suite-client",
+    "src/codex-memory",
+    "src/codex-exec",
+    "src/codex-ipc",
+    "src/codex-llm",
+    "src/codex-drive",
+    "src/codex-patcher",
+    "src/cortex-monitoring",
+    "src/cortex",
+    "src/cortex-memory",
+    "src/qwen-mind",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/coreycottrell/aiciv-mind-cubed"
+
+[workspace.dependencies]
+# Internal crates
+codex-types = { path = "src/codex-types" }
+codex-roles = { path = "src/codex-roles" }
+codex-coordination = { path = "src/codex-coordination" }
+codex-fitness = { path = "src/codex-fitness" }
+codex-redteam = { path = "src/codex-redteam" }
+codex-dream = { path = "src/codex-dream" }
+codex-drive = { path = "src/codex-drive" }
+codex-transfer = { path = "src/codex-transfer" }
+codex-suite-client = { path = "src/codex-suite-client" }
+codex-memory = { path = "src/codex-memory" }
+codex-exec = { path = "src/codex-exec" }
+codex-ipc = { path = "src/codex-ipc" }
+codex-llm = { path = "src/codex-llm" }
+codex-patcher = { path = "src/codex-patcher" }
+cortex-monitoring = { path = "src/cortex-monitoring" }
+
+# External dependencies
+anyhow = "1"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+thiserror = "2"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+async-trait = "0.1"
+reqwest = { version = "0.12", features = ["json", "stream"] }
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+base64 = "0.22"
+toml = "0.8"
+futures = "0.3"
+patch = "0.7"
+diffy = "0.4"

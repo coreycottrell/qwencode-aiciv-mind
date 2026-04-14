@@ -1,0 +1,10 @@
+{
+  "name": "graph-researcher",
+  "role": "researcher",
+  "vertical": "research",
+  "task": "Research graph databases for AI agent memory (Neo4j, Memgraph, Amazon Neptune). For each: what it does, pros/cons, best use case for AI memory. Write findings to results/output.md",
+  "spawned_at": "2026-04-10T14:16:27.270362+00:00",
+  "status": "running",
+  "tmux_pane": "qwen-minds.4",
+  "tmux_session": "qwen-minds"
+}

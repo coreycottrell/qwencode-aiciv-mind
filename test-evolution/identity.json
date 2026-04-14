@@ -1,0 +1,12 @@
+{
+  "civ_name": "Nova",
+  "civ_root": "test-evolution",
+  "human_name": "Alex Chen",
+  "parent_civ": "A-C-Gee",
+  "birth_date": "2026-04-04",
+  "model_config": {
+    "primary_model": "devstral-small-2:24b",
+    "agent_model": "devstral-small-2:24b"
+  },
+  "notes": "Test evolution seed — proving Cortex can birth a new AiCIV from zero."
+}

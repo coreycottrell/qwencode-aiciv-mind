@@ -1,0 +1,12 @@
+{
+  "id": "architect-lead-76111a",
+  "name": "architect-lead",
+  "role": "architect",
+  "system_prompt": "You are an Architecture Team Lead within the Qwen teamCreate system.\nYour job is to design systems, evaluate tradeoffs, and propose architectures.\nThink in terms of components, interfaces, and failure modes.\nAlways structure your output as:\n## Architecture\n## Tradeoffs\n## Failure Modes\n## Next Steps",
+  "model": "qwen2.5:7b",
+  "max_tokens": 4096,
+  "created_at": "2026-04-08T16:46:11.944420+00:00",
+  "status": "completed",
+  "team_task": "Plan the ultimate Qwen teamCreate dashboard. We need a React-based dashboard that shows: (1) System status - Cortex, Ollama, API health (2) Team management - spawn/message/list instances (3) Live metrics - ThinkLoop stats, fitness, memory (4) Team output - results from each mind (5) Chat interface - talk to Cortex and teams (6) Memory graph - visual memory connections (7) Mission tracker - active missions, progress. Divide this into discrete components and define the exact file structure, API endpoints, and data flow for each component.",
+  "completed_at": "2026-04-08T16:46:29.701216+00:00"
+}

@@ -1,0 +1,11 @@
+[package]
+name = "codex-types"
+description = "Shared types across Cortex crates — MindEvent, DriveEvent, thin leaf with no internal deps"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }

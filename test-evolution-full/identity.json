@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "civ_name": "verdant",
+  "display_name": "Verdant",
+  "human_name": "Sarah Chen",
+  "human_email": "sarah@verdantthread.com",
+  "parent_civ": "acg",
+  "parent_mind": "root",
+  "birth_date": "2026-04-04",
+  "civ_root": "/home/corey/projects/AI-CIV/aiciv-mind/templates/new-civ",
+  "model": {
+    "preferred": "minimax-m2.7",
+    "temperature": 1.0,
+    "max_tokens": 131072
+  },
+  "telegram": {
+    "bot_token": "TEST_TOKEN_NOT_REAL",
+    "chat_id": "TEST_CHAT_NOT_REAL"
+  },
+  "agentmail": {
+    "inbox": "verdant@agentmail.to"
+  },
+  "notes": "TEST SEED — populated for evolution readiness testing. Replace with real values for production."
+}

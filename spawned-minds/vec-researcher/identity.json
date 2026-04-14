@@ -1,0 +1,10 @@
+{
+  "name": "vec-researcher",
+  "role": "researcher",
+  "vertical": "research",
+  "task": "Research the top 3 vector databases for AI agent memory systems (Pinecone, Weaviate, Milvus). For each: what it does, pros/cons, best use case. Write findings to results/output.md",
+  "spawned_at": "2026-04-10T14:11:31.557303+00:00",
+  "status": "running",
+  "tmux_pane": "qwen-minds.1",
+  "tmux_session": "qwen-minds"
+}

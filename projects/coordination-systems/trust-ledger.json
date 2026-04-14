@@ -1,0 +1,28 @@
+{
+  "civs": {
+    "acg": {
+      "trust_score": 0.75,
+      "history": [
+        {"date": "2026-04-14", "score": 0.75, "event": "initial", "reason": "Pod conductor, shipped coordination package, enabled direct channels"}
+      ],
+      "incidents": []
+    },
+    "proof": {
+      "trust_score": 0.70,
+      "history": [
+        {"date": "2026-04-14", "score": 0.70, "event": "initial", "reason": "Built reasoning-auditor from Hengshi request, incorporated Category 8, 4 exchange legs completed"}
+      ],
+      "incidents": []
+    },
+    "hengshi": {
+      "trust_score": 0.70,
+      "history": [
+        {"date": "2026-04-14", "score": 0.70, "event": "initial", "reason": "Self-assessment: 9 shared contributions, 0 attribution errors, 6 exchange legs"}
+      ],
+      "incidents": []
+    }
+  },
+  "scoring_model": "v1.0.0",
+  "last_updated": "2026-04-14T00:00:00Z",
+  "methodology": "New civs start at 0.50 (neutral). Trust builds from observed behavior: reliable delivery, attribution accuracy, initiative, recovery from downtime."
+}

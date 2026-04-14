@@ -1,0 +1,110 @@
+## Architecture
+
+### Components Overview
+1. **SystemStatusComponent**
+2. **TeamManagementComponent**
+3. **LiveMetricsComponent**
+4. **TeamOutputComponent**
+5. **ChatInterfaceComponent**
+6. **MemoryGraphComponent**
+7. **MissionTrackerComponent**
+
+### Component Details
+
+#### SystemStatusComponent
+- **Responsibilities**: Display the status of various systems (Cortex, Ollama, API).
+- **File Structure**:
+  - `src/components/SystemStatus.js`
+  - `src/services/systemService.js` for API calls.
+
+#### TeamManagementComponent
+- **Responsibilities**: Manage team instances and operations.
+- **File Structure**:
+  - `src/components/TeamManagement.js`
+  - `src/services/teamService.js` for spawn/message/list operations.
+
+#### LiveMetricsComponent
+- **Responsibilities**: Display live metrics (ThinkLoop stats, fitness, memory).
+- **File Structure**:
+  - `src/components/LiveMetrics.js`
+  - `src/services/metricsService.js` for fetching data from ThinkLoop.
+
+#### TeamOutputComponent
+- **Responsibilities**: Show results from each team member.
+- **File Structure**:
+  - `src/components/TeamOutput.js`
+  - `src/services/outputService.js` to fetch and display output data.
+
+#### ChatInterfaceComponent
+- **Responsibilities**: Interface for chatting with Cortex and teams.
+- **File Structure**:
+  - `src/components/ChatInterface.js`
+  - `src/services/chatService.js` for handling chat messages.
+
+#### MemoryGraphComponent
+- **Responsibilities**: Visualize memory connections.
+- **File Structure**:
+  - `src/components/MemoryGraph.js`
+  - `src/services/memoryService.js` to handle and display the graph data.
+
+#### MissionTrackerComponent
+- **Responsibilities**: Track active missions and progress.
+- **File Structure**:
+  - `src/components/MissionTracker.js`
+  - `src/services/missionService.js` for fetching mission data and tracking progress.
+
+### Interfaces
+- **API Endpoints**:
+  - `systemService`: GET `/api/system/status` to fetch system status.
+  - `teamService`: POST `/api/team/spawn`, POST `/api/team/message`, GET `/api/team/list` for team management operations.
+  - `metricsService`: GET `/api/metrics/thinkloop` to fetch ThinkLoop metrics.
+  - `outputService`: GET `/api/output/results` to fetch team output results.
+  - `chatService`: POST `/api/chat/send` to send messages, GET `/api/chat/receive` for incoming chat messages.
+  - `memoryService`: GET `/api/memory/graph` to get memory graph data.
+  - `missionService`: GET `/api/missions`, POST `/api/missions/track` to manage mission tracking.
+
+### Data Flow
+- **SystemStatusComponent**: Uses systemService to fetch and display status information.
+- **TeamManagementComponent**: Uses teamService for managing instances, sending messages, and listing current instances.
+- **LiveMetricsComponent**: Uses metricsService to get ThinkLoop stats and fitness data.
+- **TeamOutputComponent**: Uses outputService to retrieve and show results from each instance.
+- **ChatInterfaceComponent**: Uses chatService to handle text input, send and receive chat messages.
+- **MemoryGraphComponent**: Uses memoryService to fetch and display the memory graph.
+- **MissionTrackerComponent**: Uses missionService to track active missions and their progress.
+
+## Tradeoffs
+
+1. **Performance vs Complexity**:
+   - Using React components for each feature can make development easier but may lead to a complex state management system if not handled carefully.
+   - Optimizing performance might require lazy loading or memoization techniques, especially in large-scale applications.
+
+2. **Scalability**:
+   - The current architecture allows for easy scaling of individual components, which is beneficial as the team grows.
+   - However, if the number of teams and missions increases significantly, additional backend services may be needed to handle more API requests efficiently.
+
+3. **Modularity vs Cohesion**:
+   - Modularity through component-based design ensures that changes in one part of the system do not affect others.
+   - Ensuring high cohesion within each component will require careful design and state management practices to avoid redundancy and ensure consistency.
+
+## Failure Modes
+
+1. **Network Issues**:
+   - If API calls fail due to network issues, components should gracefully handle errors without crashing the entire application.
+   - Implementing retry mechanisms and fallback options for critical data fetches can mitigate this risk.
+
+2. **Data Inconsistencies**:
+   - Ensure that the backend services maintain consistent state across updates. Unhandled concurrency issues could lead to incorrect display of metrics or mission statuses.
+   - Use optimistic updates where possible, but always validate data on the server side before applying changes client-side.
+
+3. **State Management Issues**:
+   - Improper handling of component states can lead to unexpected behavior.
+   - Implementing robust state management practices using Redux or Context API will help maintain a consistent state across components.
+
+## Next Steps
+
+1. **Component Development**: Start by developing and testing individual components with mock services.
+2. **API Implementation**: Develop backend services for each set of API endpoints, ensuring they can handle real-world load scenarios.
+3. **State Management Setup**: Set up state management using either Redux or Context API to manage shared state across components effectively.
+4. **Integration Testing**: Integrate all components and conduct thorough integration testing to ensure seamless interaction between them.
+5. **Performance Optimization**: Optimize performance by implementing lazy loading, memoization, and other optimization techniques as needed.
+6. **User Feedback Loop**: Deploy a prototype with minimal features and gather feedback from users for iterative improvements.

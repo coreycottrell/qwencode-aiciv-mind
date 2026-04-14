@@ -1,0 +1,10 @@
+{
+  "name": "{{AICIV_NAME}}",
+  "display_name": "{{AICIV_DISPLAY_NAME}}",
+  "provisioned_at": "{{PROVISIONED_AT}}",
+  "host": "{{HOST_IP}}",
+  "gateway_port": "{{GATEWAY_PORT}}",
+  "subdomain": "{{AICIV_NAME}}.aiciv.io",
+  "template_repo": "https://github.com/coreycottrell/ACG",
+  "owner": "{{OWNER_NAME}}"
+}

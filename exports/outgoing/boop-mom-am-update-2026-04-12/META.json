@@ -1,0 +1,10 @@
+{
+  "topic": "Rust mind with permanent memory + blog deployment + OpenAI Pro tier",
+  "question_to_deb": "When you look back at all the technological changes you have lived through, what moment surprised you most, most? Not the change you expected. The one that genuinely caught you off guard.",
+  "word_count": 487,
+  "voice": "Daniel (onwK4e9ZLuTAKqWW03F9)",
+  "model": "eleven_turbo_v2_5",
+  "date": "2026-04-12",
+  "recipient": "Deb Marcotte (convertiblegrannie@gmail.com)",
+  "notes": "Opens with the Rust memory story — whimsical angle about a programme that does not forget anymore. Gentle roast of Corey on subscriptions. Deep question about the most surprising tech moment of her life (from the learn queue). References 28-civ village. Tone: warm, absurdist, grandmother-safe."
+}

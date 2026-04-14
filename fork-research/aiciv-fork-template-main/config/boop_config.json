@@ -1,0 +1,32 @@
+{
+  "global": {
+    "paused": false,
+    "min_cadence_minutes": 5
+  },
+  "boops": [
+    {
+      "id": "work-mode",
+      "name": "Work Mode",
+      "description": "Autonomous work loop \u2014 delegates backlog to team leads",
+      "enabled": true,
+      "cadence_minutes": 25,
+      "type": "work-mode-boop",
+      "tier_config": {
+        "simple_threshold": 10,
+        "consolidation_threshold": 10
+      }
+    },
+    {
+      "id": "deepwell",
+      "name": "DEEPWELL Monitor",
+      "description": "Monitor DEEPWELL cultivation systems",
+      "enabled": false,
+      "cadence_minutes": 5,
+      "type": "deepwell",
+      "tier_config": {
+        "simple_threshold": 12,
+        "consolidation_threshold": 1
+      }
+    }
+  ]
+}

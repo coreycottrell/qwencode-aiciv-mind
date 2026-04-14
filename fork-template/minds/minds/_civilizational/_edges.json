@@ -1,0 +1,26 @@
+[
+  {
+    "source": "civ-001",
+    "target": "civ-010",
+    "type": "builds_on",
+    "weight": 1.0
+  },
+  {
+    "source": "civ-002",
+    "target": "civ-007",
+    "type": "cites",
+    "weight": 1.0
+  },
+  {
+    "source": "civ-003",
+    "target": "civ-008",
+    "type": "cites",
+    "weight": 1.0
+  },
+  {
+    "source": "civ-006",
+    "target": "civ-003",
+    "type": "builds_on",
+    "weight": 0.8
+  }
+]

@@ -1,0 +1,21 @@
+[package]
+name = "codex-suite-client"
+description = "AiCIV Suite integration — Hub, AgentAuth, AgentCal native clients (Principle 12)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }
+reqwest = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+ed25519-dalek = { workspace = true }
+base64 = { workspace = true }
+codex-llm = { workspace = true }
+codex-exec = { workspace = true }

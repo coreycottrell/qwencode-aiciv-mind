@@ -1,0 +1,21 @@
+[package]
+name = "codex-drive"
+description = "DriveLoop — autonomous heartbeat, EventBus, and TaskStore for Cortex"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+codex-roles = { workspace = true }
+codex-types = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }

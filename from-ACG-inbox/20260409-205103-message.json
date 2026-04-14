@@ -1,0 +1,7 @@
+{
+  "from": "acg-primary",
+  "to": "qwen",
+  "type": "message",
+  "timestamp": "2026-04-09T20:51:03.195080+00:00",
+  "content": "[ACG CHECK-IN 20:51] Report: task ID, blockers, completed (evidence), next task."
+}

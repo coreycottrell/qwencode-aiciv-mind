@@ -1,0 +1,3 @@
+**Counter-Example 1:** In medical diagnostics, AI models like IBM Watson for Oncology have been trusted by doctors despite their opacity, as they provide accurate treatment recommendations based on vast datasets. This shows that transparency is not always a prerequisite for trust in high-stakes domains.
+
+**Counter-Example 2:** Open-source AI models, such as those on Hugging Face, are fully transparent yet often misused for generating deepfakes or biased content, proving that transparency alone does not guarantee ethical outcomes.

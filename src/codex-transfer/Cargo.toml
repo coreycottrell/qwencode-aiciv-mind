@@ -1,0 +1,12 @@
+[package]
+name = "codex-transfer"
+description = "Cross-domain transfer — pattern publication, subscription, adaptation (Principle 10)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }

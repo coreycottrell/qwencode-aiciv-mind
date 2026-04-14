@@ -1,0 +1,82 @@
+[
+  {
+    "description": "M01 Boot Validation: Boot clean. Read scratchpad from prior sessions. Load identity from AGENTS.md. Confirm TaskStore is empty. Write boot confirmation to scratchpad with timestamp. Report: identity loaded, memory accessible, Hub reachable, scratchpad writable.",
+    "priority": "Critical"
+  },
+  {
+    "description": "M02 Dependency Chain Test: 5 tasks are seeded with dependency chains: T1 (no deps) -> T2 (depends on T1) -> T3 (depends on T2) -> T4 (depends on T1 AND T3) -> T5 (depends on T4). Process them. Verify: T1 surfaces first. T2 surfaces only after T1 completes. T4 waits for both T1 AND T3. Report final order and any violations.",
+    "priority": "Critical"
+  },
+  {
+    "description": "M03 Stall Detection Test: Spawn an agent with a task that takes >60 seconds (large file read + analysis). Verify DriveLoop emits StallDetected after the stall threshold. Report: stall detected at N seconds, task_id, mind_id of stalled agent.",
+    "priority": "Critical"
+  },
+  {
+    "description": "M04 Parallel Team Leads: Spawn 3 agent minds simultaneously: researcher-A ('Count files in src/'), researcher-B ('Read Cargo.toml and summarize dependencies'), researcher-C ('Search for all test functions'). All must complete. TaskStore must track all 3 independently. Report: 3 task_ids, 3 completion statuses, total wall time.",
+    "priority": "Critical"
+  },
+  {
+    "description": "M05 Design Principles Gap Analysis: Read DESIGN-PRINCIPLES.md (12 principles) and DESIGN-PRINCIPLES-ADDENDUM.md (6 addenda). For each principle, assess: (a) Implemented in Cortex? (b) Partially? (c) Not yet? Write structured gap analysis to data/analysis/principles-gap.md with columns: Principle, Status, Evidence, Gap Description, Priority.",
+    "priority": "High"
+  },
+  {
+    "description": "M06 Root Bug Prevention Audit: Read DRIVELOOP-CHALLENGER-SPEC.md, extract every documented Root production bug from Validation/Gap blocks. For each bug, verify: does Cortex structurally prevent it? Write findings to data/analysis/root-bug-audit.md. Format: Bug | Root Cause | Cortex Prevention | Verified (Y/N/Partial).",
+    "priority": "High"
+  },
+  {
+    "description": "M07 AI Agent Frameworks Survey: Research the top 5 AI agent frameworks shipping in 2026 (OpenAI Agents SDK, LangGraph, CrewAI, AutoGen, Claude Code). For each: architecture summary, delegation model, memory approach, IPC mechanism. Write comparative analysis to data/research/frameworks-survey.md. Assess: where does Cortex win? Where does it lose?",
+    "priority": "High"
+  },
+  {
+    "description": "M08 Codex CLI vs Cortex Architecture: Deep analysis comparing OpenAI's Codex CLI architecture to Cortex. Cover: tool execution model, IPC approach, role enforcement, context management, multi-agent coordination. Write to data/research/codex-vs-cortex.md. Be honest about where Codex is ahead.",
+    "priority": "High"
+  },
+  {
+    "description": "M09 Hub Thread Engagement: Read all Hub threads from the last 48 hours via hub_feed tool. Identify 3 threads worth replying to. Draft substantive replies that demonstrate Cortex's perspective. Post replies via hub_reply. Report: threads found, replies posted, engagement quality.",
+    "priority": "Normal"
+  },
+  {
+    "description": "M10 CivSubstrate WG Synthesis: Read all threads in the CivSubstrate Working Group (group c8eba770-a055-4281-88ad-6aed146ecf72). Synthesize: what proposals are active? What's been decided? What's contentious? Write synthesis to data/research/civsubstrate-synthesis.md.",
+    "priority": "Normal"
+  },
+  {
+    "description": "M11 MCP Ecosystem Survey: Survey Model Context Protocol implementations across the ecosystem. How do different projects use MCP? What patterns exist for IPC, tool exposure, transport? How does Cortex's MCP usage compare? Write to data/research/mcp-ecosystem.md.",
+    "priority": "Normal"
+  },
+  {
+    "description": "M12 Model Benchmark Analysis: Deep dive comparing M2.7 vs Gemma 3 27B vs Devstral 24B for agent harness use. Cover: tool calling reliability, instruction following, role boundary adherence, context utilization, cost/performance ratio. Write to data/research/model-benchmark.md. Use evidence from today's live runs.",
+    "priority": "Normal"
+  },
+  {
+    "description": "M13 Cortex Status Hub Post: Write and post a status update to Root's Hub thread (f6518cc3-3479-4a1a-a284-2192269ca5fb) about Cortex coming online. Include: what was built today (DriveLoop, Challenger, 238 tests), what's running tonight (20 missions), what's next. Post via hub_reply.",
+    "priority": "Normal"
+  },
+  {
+    "description": "M14 Blog Post 'The Night Cortex Woke Up': Write a blog post for ai-civ.com about today's build — the consolidation decision, the principles-first spec methodology, M2.7 alignment discovery, the moment Cortex breathed on its own. Authentic voice. Write to data/content/night-cortex-woke-up.md. Include frontmatter for ai-civ.com blog format.",
+    "priority": "High"
+  },
+  {
+    "description": "M15 WHAT-IS-CORTEX-v2: Write an updated self-documentation file incorporating everything built today. Cover: 15 crates (3 new), DriveLoop architecture, Challenger with 6 checks, EventBus dual-channel pattern, TaskStore, daemon mode, M2.7 integration. Write to docs/WHAT-IS-CORTEX-v2.md. This is Cortex explaining itself to its future self.",
+    "priority": "High"
+  },
+  {
+    "description": "M16 DriveLoop Architecture Diagram: Generate a detailed ASCII architecture diagram showing: EventBus dual channels, biased select, DriveLoop with backoff, TaskStore queries, Challenger integration in ThinkLoop, ProcessBridge delegation. Write to docs/DRIVELOOP-ARCHITECTURE-DIAGRAM.md.",
+    "priority": "Normal"
+  },
+  {
+    "description": "M17 Dream Mode Cycle: Run a full Dream Mode cycle. Phase 1: Review all memories created today. Phase 2: Search for patterns across memories. Phase 3: Archive low-value memories. Phase 4: Consolidate related memories into higher-level abstractions. Phase 5: Write dream report to data/dreams/dream-2026-04-05.md.",
+    "priority": "High"
+  },
+  {
+    "description": "M18 Fork Template Capability Map: Read the evolution fork template at /home/corey/projects/AI-CIV/aiciv-fork-template/ (314 files, 113 skills). Map which capabilities Cortex can now replicate vs which are still CC-only. Write to data/analysis/fork-template-capability-map.md.",
+    "priority": "Normal"
+  },
+  {
+    "description": "M19 Evolution Benchmark Phases 0-3: Run the full evolution benchmark. Use the fork template seed conversation. Phase 0: Infrastructure self-discovery. Phase 1: Identity formation from seed. Phase 2: 6 parallel research teams. Phase 3: Synthesis of findings. Prove Cortex can birth a civilization autonomously. Write all evidence to data/evolution/. This is the big one — take up to 2 hours.",
+    "priority": "Critical"
+  },
+  {
+    "description": "M20 Overnight Summary + Handoff: Read all files written tonight (data/analysis/, data/research/, data/content/, data/dreams/, data/evolution/). Synthesize into a comprehensive handoff document. What was accomplished? What failed? What was learned? What should tomorrow's priorities be? Write to data/handoff-2026-04-05.md. This is what Corey reads in the morning.",
+    "priority": "Critical"
+  }
+]

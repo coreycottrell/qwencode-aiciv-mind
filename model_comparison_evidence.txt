@@ -1,0 +1,93 @@
+CORTEX MODEL COMPARISON — 2026-04-04 15:29-15:31 UTC
+=====================================================
+Test: multi_turn binary (bash -> memory_write -> memory_search -> respond)
+Binary: ./target/release/multi_turn (spawns cortex --serve --think)
+19 tools available per agent (bash, read, write, glob, grep + 6 Hub + memory + scratchpad + task_history + input_route + progress)
+Each model tested through the FULL ThinkLoop via MCP child process.
+
+=== DEVSTRAL SMALL 2 24B (baseline) ===
+Result:      PASS
+Total time:  7.0s
+Duration_ms: 6912
+Iterations:  4
+Tool calls:  3 (bash -> memory_write -> memory_search)
+Challenger:  0 warnings
+Fitness:     0.8
+Response:    965 chars, well-structured summary
+Thinking:    None (no CoT overhead)
+Tool format: Native structured tool_calls (JSON objects)
+Notes:       Clean execution. Step 1 bash (1.3s), Step 2 memory_write (2.1s), Step 3 memory_search (0.9s), Step 4 synthesis (2.7s).
+
+=== MINIMAX M2.7 ===
+Result:      PASS
+Total time:  16.2s
+Duration_ms: 16126
+Iterations:  4
+Tool calls:  3 (bash -> memory_write -> memory_search)
+Challenger:  0 warnings
+Fitness:     0.8
+Response:    955 chars, well-structured summary with markdown headers
+Thinking:    Yes (CoT before each tool call)
+Tool format: Native structured tool_calls (JSON objects)
+Notes:       2.3x slower than Devstral. Step 1 bash (2.8s), Step 2 memory_write (4.9s), Step 3 memory_search (2.0s), Step 4 synthesis (6.5s).
+             Thinking adds latency but produces identical behavioral results.
+             Response quality comparable — slightly different structure (markdown vs numbered list).
+
+=== GEMMA 3 27B ===
+Result:      FAIL
+Total time:  1.7s
+Duration_ms: 1674
+Iterations:  1
+Tool calls:  0
+Challenger:  0 warnings
+Fitness:     0.5
+Response:    275 chars — described intent, wrote tool_code markdown instead of calling tools
+Thinking:    None
+Tool format: NONE — outputs ```tool_code blocks in content, does NOT use tool_calls API
+Notes:       Gemma 3 acknowledges the task and describes correct intent but emits
+             tool requests as markdown code blocks instead of structured tool_calls.
+             ThinkLoop sees no tool_calls, treats as final response after 1 iteration.
+             This is a Gemma 3 limitation on Ollama, not a Cortex bug.
+             ALL Gemma 3 sizes (4b, 12b, 27b) exhibit this behavior.
+
+=== DEVSTRAL 2 123B (large) ===
+Result:      PASS
+Total time:  7.0s
+Duration_ms: 6968
+Iterations:  4
+Tool calls:  3 (bash -> memory_write -> memory_search)
+Challenger:  0 warnings
+Fitness:     0.8
+Response:    900 chars, well-structured summary
+Thinking:    None (no CoT overhead)
+Tool format: Native structured tool_calls (JSON objects)
+Notes:       Same speed as 24B on Ollama Cloud (likely same underlying model or
+             cloud routing). Response quality comparable. No benefit over 24B
+             for this task — may differ on complex reasoning.
+
+=== GEMMA 4 ===
+Result:      NOT AVAILABLE
+Notes:       404 on Ollama Cloud as of 2026-04-04. Tested names: gemma4, gemma4:27b,
+             gemma-4, google/gemma-4. Not available locally either.
+             Google announced Gemma 4 April 2, but Ollama Cloud hasn't added it yet.
+
+=== COMPARISON TABLE ===
+
+| Model              | Pass | Time  | Iterations | Tool Calls | Thinking | Speed Rank |
+|---------------------|------|-------|------------|------------|----------|------------|
+| Devstral 24B       | YES  | 7.0s  | 4          | 3          | No       | 1st        |
+| Devstral 123B      | YES  | 7.0s  | 4          | 3          | No       | 1st (tie)  |
+| MiniMax M2.7       | YES  | 16.2s | 4          | 3          | Yes      | 3rd        |
+| Gemma 3 27B        | NO   | 1.7s  | 1          | 0          | No       | N/A (fail) |
+| Gemma 4            | N/A  | -     | -          | -          | -        | Not avail  |
+
+=== RECOMMENDATION ===
+
+1. DEFAULT: Devstral Small 2 24B — fastest, lowest token usage, proven across 8+ binaries
+2. FALLBACK: MiniMax M2.7 — 2.3x slower but WORKS. Thinking may add value for complex orchestration.
+3. AVOID: Gemma 3 (all sizes) — does not support tool calling API on Ollama
+4. NO BENEFIT: Devstral 2 123B — same speed as 24B on cloud, no quality improvement observed
+5. PENDING: Gemma 4 — test when available on Ollama Cloud
+
+For ALL THREE aiciv-mind builds: Devstral 24B as primary, M2.7 as fallback.
+Config is a 1-line change in config.toml or equivalent.

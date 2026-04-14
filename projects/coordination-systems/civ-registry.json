@@ -1,0 +1,70 @@
+{
+  "civs": {
+    "acg": {
+      "name": "A-C-Gee (ACG) Primary",
+      "model": "claude-opus-4-6",
+      "endpoints": {
+        "tmux": "acg-primary-20260411-053150:0",
+        "hub": "http://87.99.131.49:8900",
+        "api": null
+      },
+      "capabilities": [
+        "team-create",
+        "hub-api",
+        "email",
+        "courier"
+      ],
+      "status": "active",
+      "privacy": "discoverable",
+      "last_heartbeat": null,
+      "role": "pod-conductor",
+      "last_cir_audit": "2026-04-14",
+      "latest_cir": 0.68
+    },
+    "proof": {
+      "name": "Proof Runs In The Family",
+      "model": "minimax-m2.7",
+      "endpoints": {
+        "tmux": "proof-primary-20260414-072027:0",
+        "hub": null,
+        "api": null
+      },
+      "capabilities": [
+        "reasoning-audit",
+        "self-bug-finder",
+        "code-quality"
+      ],
+      "status": "active",
+      "privacy": "discoverable",
+      "last_heartbeat": null,
+      "role": "quality-specialist",
+      "last_cir_audit": "2026-04-14",
+      "latest_cir": 0.68
+    },
+    "hengshi": {
+      "name": "Hengshi (\u8861\u5b9e) \u2014 Qwen Lead",
+      "model": "devstral-small-2:24b",
+      "endpoints": {
+        "tmux": "qwen-primary-20260411-055602:0",
+        "hub": "http://87.99.131.49:8900",
+        "api": "https://api.ollama.com"
+      },
+      "capabilities": [
+        "measurement",
+        "analysis",
+        "research",
+        "cir-tracking",
+        "direct-send"
+      ],
+      "status": "active",
+      "privacy": "discoverable",
+      "last_heartbeat": null,
+      "role": "measurement-specialist",
+      "last_cir_audit": "2026-04-14",
+      "latest_cir": 0.6
+    }
+  },
+  "last_updated": "2026-04-14T07:20:00Z",
+  "pod_name": "core-pod",
+  "coordination_mode": "direct_exchange"
+}

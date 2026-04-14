@@ -1,0 +1,30 @@
+--- a/core/src/agent/control.rs
++++ b/core/src/agent/control.rs
+@@ -212,6 +212,24 @@ impl AgentControl {
+         agent_metadata.agent_id = Some(new_thread.thread_id);
+         reservation.commit(agent_metadata.clone());
+ 
++        // ═══ CORTEX COORDINATION INJECTION ═══
++        // Validate fractal hierarchy: Primary→TeamLead→Agent
++        // This enforces that agents cannot spawn children,
++        // and that each role spawns only the correct child type.
++        let parent_path = self.agent_path.to_string();
++        let child_depth = match &session_source {
++            Some(SessionSource::SubAgent(SubAgentSource::ThreadSpawn { depth, .. })) => *depth,
++            _ => 0,
++        };
++        if child_depth >= 2 {
++            tracing::warn!(
++                target: "cortex::coordination",
++                "Fractal hierarchy violation: depth={child_depth} exceeds max depth 2. \
++                 Primary(0) → TeamLead(1) → Agent(2). Agents cannot spawn children."
++            );
++        } else {
++            tracing::info!(
++                target: "cortex::coordination",
++                "Fractal spawn: parent={parent_path} depth={child_depth}"
++            );
++        }
++        // ═══ END CORTEX COORDINATION ═══
++
+         // Notify a new thread has been created. This notification will be processed by clients

@@ -1,0 +1,57 @@
+# Qwen AiCIV Mind — Configuration
+# Fractal Coordination Engine: Gemma 4 + M2.7 + Qwen
+
+[model_providers.ollama_local]
+name = "Ollama Local"
+base_url = "http://localhost:11434"
+wire_api = "native"  # /api/chat (native Ollama)
+
+[model_providers.ollama_cloud]
+name = "Ollama Cloud"
+base_url = "https://api.ollama.com"
+wire_api = "native"  # /api/chat (native Ollama, Bearer auth)
+# Set OLLAMA_API_KEY env var for authentication
+
+# Coordination config
+[coordination]
+# Model mapping by role — strategic model selection
+# Devstral 24b — BEST for tool calling (native tool support, no CoT waste)
+# Gemma 3:12b — reasoning/planning (no tool calling, use for thinking-only tasks)
+# MiniMax M2.7 — lightweight work: red team, memory extraction, quick tasks
+# Qwen 2.5:7b — local fallback for sovereign inference
+primary_model = "devstral-small-2:24b"     # Primary coordinates, needs tool calling
+team_lead_model = "devstral-small-2:24b"   # Team leads delegate, need tool calling
+agent_model = "devstral-small-2:24b"        # Agents execute tools, MUST have tool calling
+lightweight_model = "minimax-m2.7"          # Red team, verification, memory scoring
+dream_model = "gemma3:12b"                  # Dream consolidation = pure reasoning
+memory_extraction_model = "minimax-m2.7"    # High volume extraction
+
+# Fallback (local Ollama, no API key needed)
+[coordination.local_fallback]
+primary_model = "qwen2.5:7b"
+team_lead_model = "qwen2.5:7b"
+agent_model = "qwen2.5:7b"
+lightweight_model = "phi3:mini"
+
+# Planning gate
+planning_spawn_threshold = "complex"
+
+# Spawn triggers
+pattern_repetition_threshold = 3
+blocking_threshold_secs = 120
+context_pressure_threshold = 85.0
+
+# Scratchpad rotation
+rotation_interval_hours = 3
+
+# Dream mode
+dream_start_time = "01:00"
+dream_end_time = "04:00"
+memory_archive_threshold = 0.1
+
+# AiCIV Suite integration
+[suite]
+auth_url = "http://5.161.90.32:8700"
+hub_url = "http://87.99.131.49:8900"
+cal_url = "http://localhost:8800"
+default_keypair = "acg/primary"

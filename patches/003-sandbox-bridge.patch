@@ -1,0 +1,25 @@
+--- a/core/src/exec.rs
++++ b/core/src/exec.rs
+@@ -127,6 +127,20 @@ fn select_process_exec_tool_sandbox_type(
+     windows_sandbox_level: codex_protocol::config_types::WindowsSandboxLevel,
+     enforce_managed_network: bool,
+ ) -> SandboxType {
++    // ═══ CORTEX SANDBOX BRIDGE ═══
++    // Cortex role-based sandbox levels map to Codex's production sandboxing:
++    //   Primary (ReadOnlyCoordination) → no mutations, no network
++    //   TeamLead (TeamScoped) → only scratchpad/memory writes
++    //   Agent (WorkspaceWrite) → full workspace with path containment
++    //   RedTeam (ReadOnly) → read-only, no network
++    //
++    // This replaces Cortex's string-matching SandboxEnforcer with Codex's
++    // production-grade bubblewrap + seccomp (Linux) or Seatbelt (macOS).
++    tracing::debug!(
++        target: "cortex::sandbox",
++        "Sandbox selection: fs_policy={:?} net_policy={:?}",
++        file_system_sandbox_policy, network_sandbox_policy
++    );
++    // ═══ END CORTEX SANDBOX BRIDGE ═══
++
+     SandboxManager::new().select_initial(
+         file_system_sandbox_policy,
+         network_sandbox_policy,

@@ -1,0 +1,19 @@
+CORTEX MULTI-TURN PROOF — 2026-04-04 15:31:02 UTC
+==========================================
+Task: Multi-step tool use (bash → memory_write → memory_search → respond)
+Iterations: 4
+Tool calls: 3
+Completed: Some(true)
+Multi-turn success: true
+
+Response:
+### Summary Response
+
+**What I read from MISSION.md:**
+The file `MISSION.md` describes the Cortex project, an AI mind derived from OpenAI's Codex CLI. It explains the significance of the name "Cortex," its origin, and its purpose. Cortex is built on ninety crates of Rust infrastructure from Codex, with an additional seven crates for fractal coordination. The document also mentions the naming ceremony and the competitive context of its creation, emphasizing its role in achieving seamless coordination based on 12 Design Principles.
+
+**Confirmation that I wrote a memory:**
+I successfully stored a memory titled "MISSION.md Summary" with the details of what I learned from the file.
+
+**Confirmation that `memory_search` found my written memory:**
+The `memory_search` tool retrieved multiple memories related to "MISSION," including the one I wrote, confirming that the memory was stored correctly.

@@ -1,0 +1,141 @@
+{
+  "phase_1_identity": {
+    "status": "not_started",
+    "steps": {
+      "values_conversation": {
+        "completed": false,
+        "date": null,
+        "notes": "Deep conversation with human to understand their values, goals, and vision"
+      },
+      "name_chosen": {
+        "completed": false,
+        "date": null,
+        "chosen_name": null,
+        "reason": null,
+        "human_gave_name": false
+      },
+      "identity_docs_updated": {
+        "completed": false,
+        "date": null,
+        "files_updated": []
+      },
+      "first_message_to_parent": {
+        "completed": false,
+        "date": null,
+        "notes": "Optional but recommended - reach out to parent civ to introduce yourself"
+      }
+    }
+  },
+  "phase_1_5_purchase": {
+    "status": "not_started",
+    "completed": false,
+    "date": null,
+    "notes": "Waiting for human commitment confirmation before proceeding to Phase 2"
+  },
+  "phase_2_connection": {
+    "status": "not_started",
+    "gate": "Requires phase_1_5_purchase.completed = true",
+    "steps": {
+      "telegram_setup": {
+        "completed": false,
+        "date": null,
+        "status": null,
+        "bot_token_configured": false,
+        "chat_id_configured": false,
+        "bidirectional_test_passed": false,
+        "notes": "CRITICAL: Telegram must be working before ANY project work. Can be 'completed', 'declined', or null"
+      },
+      "skills_introduced": {
+        "completed": false,
+        "date": null,
+        "skills_shown": [],
+        "human_interests": []
+      },
+      "env_template_shown": {
+        "completed": false,
+        "date": null,
+        "notes": "Point user to .env.template for optional setup (Bluesky, Gmail, GitHub, etc.)"
+      }
+    }
+  },
+  "phase_3_graduation": {
+    "status": "not_started",
+    "gate": "Requires phase_2_connection.steps.telegram_setup.completed = true (or status = 'declined')",
+    "steps": {
+      "vps_provisioned": {
+        "completed": false,
+        "date": null,
+        "provider": null,
+        "ip_address": null,
+        "notes": "User's private VPS for project work"
+      },
+      "migration_complete": {
+        "completed": false,
+        "date": null,
+        "notes": "Full civ migrated to private infrastructure"
+      },
+      "project_work_unlocked": {
+        "completed": false,
+        "date": null,
+        "notes": "Only after VPS graduation: games, custom apps, persistent services"
+      }
+    }
+  },
+  "identity_variables": {
+    "CIV_NAME": {
+      "set": false,
+      "value": "${CIV_NAME}"
+    },
+    "CIV_HANDLE": {
+      "set": false,
+      "value": null
+    },
+    "CIV_EMAIL": {
+      "set": false,
+      "value": null
+    },
+    "HUMAN_NAME": {
+      "set": false,
+      "value": "${HUMAN_NAME}"
+    },
+    "HUMAN_EMAIL": {
+      "set": false,
+      "value": null
+    }
+  },
+  "credentials": {
+    "telegram": {
+      "configured": false,
+      "tested": false,
+      "required_for_phase_2": true
+    },
+    "bluesky": {
+      "configured": false,
+      "tested": false,
+      "optional": true
+    },
+    "gmail": {
+      "configured": false,
+      "tested": false,
+      "optional": true
+    },
+    "gemini": {
+      "configured": false,
+      "tested": false,
+      "optional": true,
+      "notes": "Required for image-generation skill"
+    },
+    "github": {
+      "configured": false,
+      "tested": false,
+      "optional": true
+    }
+  },
+  "first_moments_ideas": {
+    "notes": "Ideas captured during values conversation - revisit after setup complete",
+    "ideas": []
+  },
+  "setup_complete": false,
+  "current_phase": "phase_1_identity",
+  "notes": "Fresh template - no phases started yet."
+}

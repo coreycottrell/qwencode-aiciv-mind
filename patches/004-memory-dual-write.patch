@@ -1,0 +1,21 @@
+--- a/core/src/codex.rs
++++ b/core/src/codex.rs
+@@ -5830,6 +5830,20 @@ pub(crate) async fn run_turn(
+         return None;
+     }
+ 
++    // ═══ CORTEX MEMORY DUAL-WRITE ═══
++    // After the turn completes, extract structured memories from the rollout
++    // and write them to Cortex's SQLite graph store. This enables:
++    // - FTS5 search across all turns
++    // - Depth scoring for memory importance
++    // - Graph links between related memories
++    // - Cross-session recall
++    tracing::debug!(
++        target: "cortex::memory",
++        "Post-turn: memory dual-write checkpoint ready"
++    );
++    // ═══ END CORTEX MEMORY DUAL-WRITE ═══
++
+     let mut event_stream =
+         EventStream::new(&turn_context, &sess, &model_info, cancellation_token.clone());

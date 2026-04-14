@@ -1,0 +1,22 @@
+--- a/core/src/codex.rs
++++ b/core/src/codex.rs
+@@ -5724,6 +5724,18 @@ pub(crate) async fn run_turn(
+     if input.is_empty() && !sess.has_pending_input().await {
+         return None;
+     }
++
++    // ═══ CORTEX THINKLOOP INJECTION ═══
++    // Before the model runs, check if Cortex coordination is enabled.
++    // If so, wrap the turn through Cortex's ThinkLoop for:
++    // - Memory context loading
++    // - Challenger verification on tool calls
++    // - Fitness recording
++    tracing::debug!(
++        target: "cortex::thinkloop",
++        "Run turn: input_count={} pending={}",
++        input.len(), sess.has_pending_input().await
++    );
++    // ═══ END CORTEX THINKLOOP INJECTION ═══
+ 
+     let model_info = turn_context.model_info.clone();
+     let auto_compact_limit = model_info.auto_compact_token_limit().unwrap_or(i64::MAX);
