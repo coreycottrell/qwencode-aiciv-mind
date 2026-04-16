@@ -4,8 +4,11 @@
 //! are retried up to 3 times with exponential backoff (1s, 2s, 4s).
 //! Non-retryable errors (4xx except 429, parse errors) fail immediately.
 
+use std::sync::Arc;
+
 use async_trait::async_trait;
 
+use aiciv_auth::AuthProvider;
 use crate::provider::LlmProvider;
 use crate::rate_limiter::RateLimiter;
 use codex_exec::ToolDefinition;
@@ -196,6 +199,9 @@ pub struct OllamaClient {
     http: Client,
     /// Optional rate limiter — tracks usage and provides circuit breaker protection.
     rate_limiter: Option<RateLimiter>,
+    /// Optional auth provider from aiciv-auth — used for dynamic credential resolution.
+    /// When set, takes priority over `config.api_key`. Falls back to config on error.
+    auth_provider: Option<Arc<dyn AuthProvider>>,
 }
 
 /// Native Ollama API response (different from OpenAI format).
@@ -267,6 +273,7 @@ impl OllamaClient {
             config,
             http,
             rate_limiter: None,
+            auth_provider: None,
         }
     }
 
@@ -274,6 +281,21 @@ impl OllamaClient {
     pub fn with_rate_limiter(mut self, limiter: RateLimiter) -> Self {
         self.rate_limiter = Some(limiter);
         self
+    }
+
+    /// Attach an `AuthProvider` from aiciv-auth for dynamic credential resolution.
+    ///
+    /// When set, the provider is consulted before every request. If it returns
+    /// a header value, that is used. If it errors, we fall back to `config.api_key`.
+    /// If no provider is set, `config.api_key` is used directly (backward compatible).
+    pub fn with_auth_provider(mut self, provider: Arc<dyn AuthProvider>) -> Self {
+        self.auth_provider = Some(provider);
+        self
+    }
+
+    /// Get a reference to the auth provider, if configured.
+    pub fn auth_provider(&self) -> Option<&Arc<dyn AuthProvider>> {
+        self.auth_provider.as_ref()
     }
 
     /// Get a reference to the rate limiter, if configured.
@@ -364,7 +386,27 @@ impl OllamaClient {
             let request_start = std::time::Instant::now();
 
             let mut req = self.http.post(&url).json(&body);
-            if let Some(ref key) = self.config.api_key {
+
+            // Auth resolution: try AuthProvider first, fall back to config.api_key
+            if let Some(ref provider) = self.auth_provider {
+                match provider.auth_header().await {
+                    Ok(Some(header)) => {
+                        req = req.header("Authorization", header);
+                    }
+                    Ok(None) => {
+                        // Provider has no credentials — fall back to config
+                        if let Some(ref key) = self.config.api_key {
+                            req = req.bearer_auth(key);
+                        }
+                    }
+                    Err(e) => {
+                        warn!(error = %e, provider = provider.provider_name(), "AuthProvider failed, falling back to config api_key");
+                        if let Some(ref key) = self.config.api_key {
+                            req = req.bearer_auth(key);
+                        }
+                    }
+                }
+            } else if let Some(ref key) = self.config.api_key {
                 req = req.bearer_auth(key);
             }
 
@@ -807,5 +849,64 @@ mod tests {
         let light_cfg = router.config_lightweight();
         assert_eq!(light_cfg.model, "minimax-m2.7");
         assert_eq!(light_cfg.temperature, 1.0);
+    }
+
+    // ── AuthProvider integration tests ──────────────────────────────────────
+
+    #[test]
+    fn client_default_has_no_auth_provider() {
+        let client = OllamaClient::new(OllamaConfig::default());
+        assert!(client.auth_provider().is_none());
+    }
+
+    #[tokio::test]
+    async fn client_with_auth_provider_sets_provider() {
+        use aiciv_auth::ApiKeyProvider;
+
+        let provider = ApiKeyProvider::with_key("ollama-cloud", "test-secret-key-789");
+        let arc_provider: Arc<dyn AuthProvider> = Arc::new(provider);
+
+        let client = OllamaClient::new(OllamaConfig::default())
+            .with_auth_provider(arc_provider);
+
+        // Verify the provider is set
+        assert!(client.auth_provider().is_some());
+
+        // Verify the provider produces the expected header
+        let provider_ref = client.auth_provider().unwrap();
+        let header = provider_ref.auth_header().await.unwrap();
+        assert_eq!(header, Some("Bearer test-secret-key-789".to_string()));
+        assert_eq!(provider_ref.provider_name(), "ollama-cloud");
+    }
+
+    #[tokio::test]
+    async fn client_auth_provider_with_rate_limiter_both_set() {
+        use aiciv_auth::ApiKeyProvider;
+        use std::path::PathBuf;
+
+        let provider: Arc<dyn AuthProvider> = Arc::new(
+            ApiKeyProvider::with_key("test-provider", "key-abc"),
+        );
+        let tmp = tempfile::tempdir().unwrap();
+        let limiter = RateLimiter::new(PathBuf::from(tmp.path()));
+
+        let client = OllamaClient::new(OllamaConfig::default())
+            .with_auth_provider(provider)
+            .with_rate_limiter(limiter);
+
+        // Both should be set — builder chaining works
+        assert!(client.auth_provider().is_some());
+        assert!(client.rate_limiter().is_some());
+    }
+
+    #[test]
+    fn client_without_auth_provider_backward_compatible() {
+        // Existing code path: no auth_provider, api_key on config
+        let config = OllamaConfig::cloud("model", "legacy-key");
+        let client = OllamaClient::new(config);
+
+        // No auth_provider — will use config.api_key directly
+        assert!(client.auth_provider().is_none());
+        assert_eq!(client.config().api_key.as_deref(), Some("legacy-key"));
     }
 }

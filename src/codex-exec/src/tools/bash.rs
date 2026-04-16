@@ -29,6 +29,9 @@ impl ToolHandler for BashTool {
             .and_then(|v| v.as_u64())
             .unwrap_or(120_000);
 
+        // TODO(Sprint-future): Wrap bash execution in Landlock/bwrap for process isolation.
+        // Currently bare `bash -c` — sandbox.rs is policy-only, not execution isolation.
+        // See: Proof RED TEAM Finding 6 (2026-04-16)
         match tokio::time::timeout(
             std::time::Duration::from_millis(timeout_ms),
             Command::new("bash")

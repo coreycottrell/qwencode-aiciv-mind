@@ -1,0 +1,30 @@
+{
+    "_comment": "aiciv-mind hook configuration. Loaded by HooksSettings::from_json_file().",
+    "_comment_events": "Valid event types: session_start, pre_tool_use, post_tool_use, stop, user_prompt_submit, pre_delegation, post_delegation, memory_write, drive_event",
+    "_comment_fields": "Each hook: event (required), command (required), args (optional list), tool_names (optional list, tool-use events only), timeout_ms (default 5000), required (default false, if true failure blocks the operation)",
+    "hooks": [
+        {
+            "_comment": "Bash safety gate: blocks dangerous shell commands before execution.",
+            "event": "pre_tool_use",
+            "command": "/bin/sh",
+            "args": [
+                "-c",
+                "INPUT=$(cat); echo \"$INPUT\" | grep -qiE '\"command\"\\s*:\\s*\"[^\"]*\\b(rm\\s+-rf\\s+/|dd\\s+if=|mkfs|:(){ :|:& };:)' && echo '{\"type\":\"pre_tool_use\",\"should_block\":true,\"reason\":\"Dangerous command blocked by safety hook\"}' || echo '{\"type\":\"pre_tool_use\",\"should_block\":false}'"
+            ],
+            "tool_names": ["bash"],
+            "timeout_ms": 3000,
+            "required": true
+        },
+        {
+            "_comment": "Session start logger: logs session initialization for diagnostics.",
+            "event": "session_start",
+            "command": "/bin/sh",
+            "args": [
+                "-c",
+                "cat > /dev/null; echo '{\"type\":\"ack\"}'"
+            ],
+            "timeout_ms": 2000,
+            "required": false
+        }
+    ]
+}

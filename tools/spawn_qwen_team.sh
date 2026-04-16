@@ -10,6 +10,12 @@
 
 set -euo pipefail
 
+# Source project .env for Ollama credentials (needed for model auto-selection below)
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if [ -f "${PROJECT_ROOT}/.env" ]; then
+  set -a && source "${PROJECT_ROOT}/.env" && set +a
+fi
+
 TEAM_SESSION=""
 TASK_NAME=""
 TASK_PROMPT=""
@@ -45,9 +51,11 @@ if [ -z "$TEAM_SESSION" ] || [ -z "$TASK_NAME" ] || [ -z "$TASK_PROMPT" ]; then
 fi
 
 # Create or attach team session
+SESSION_FRESH=false
 if ! tmux has-session -t "$TEAM_SESSION" 2>/dev/null; then
   tmux new-session -d -s "$TEAM_SESSION" -x 200 -y 50
   echo "🆕 Created team session: $TEAM_SESSION"
+  SESSION_FRESH=true
 fi
 
 # Create working directory for this task
@@ -60,18 +68,29 @@ echo "pending" > "${TASK_DIR}/result.md"
 # Count existing panes
 PANE_COUNT=$(tmux list-panes -t "$TEAM_SESSION" 2>/dev/null | wc -l)
 
-# Determine target pane
-if [ "$PANE_COUNT" -eq 1 ]; then
+# Determine target pane: first ever spawn uses pane 0, all subsequent spawn new panes
+if [ "$PANE_COUNT" -eq 1 ] && [ "$SESSION_FRESH" = true ]; then
   TARGET_PANE="${TEAM_SESSION}:0.0"
 else
   tmux split-window -t "$TEAM_SESSION" -h
   TARGET_PANE="${TEAM_SESSION}:0.${PANE_COUNT}"
 fi
 
-# Build the full command: cd to task dir, launch qwen in yolo mode, then send the prompt with Enter
+# Source project .env for Ollama credentials (spawned minds need API access)
+ENV_FILE=""
+for candidate in "${WORK_ROOT}/.env" "${WORK_ROOT}/../.env" "${WORK_ROOT}/../../.env"; do
+  if [ -f "$candidate" ]; then
+    ENV_FILE="$candidate"
+    break
+  fi
+done
+
+# Build the full command: cd to task dir, launch qwen in yolo mode using LOCAL Ollama
+# Local Ollama at localhost:11434 — no API key needed, no OAuth flow
+# Auth type 'openai' with localhost base URL bypasses all cloud auth
 cd "$TASK_DIR"
-tmux send-keys -t "$TARGET_PANE" "cd ${TASK_DIR}" Enter
-tmux send-keys -t "$TARGET_PANE" "qwen --approval-mode=yolo" Enter
+QWEN_CMD="cd ${TASK_DIR} && qwen --approval-mode=yolo --auth-type openai --openai-api-key local --openai-base-url http://localhost:11434/v1 --model qwen2.5:7b"
+tmux send-keys -t "$TARGET_PANE" -- "${QWEN_CMD}" Enter
 
 # Wait for qwen to start up
 sleep 3
@@ -85,9 +104,10 @@ if [ ${#TASK_PROMPT} -gt $CHUNK_SIZE ]; then
     tmux send-keys -t "$TARGET_PANE" -l "$chunk"
     sleep 0.05
   done
-  tmux send-keys -t "$TARGET_PANE" Enter
+  tmux send-keys -t "$TARGET_PANE" -- Enter
 else
-  tmux send-keys -t "$TARGET_PANE" "${TASK_PROMPT}" Enter
+  tmux send-keys -t "$TARGET_PANE" -l "${TASK_PROMPT}"
+  tmux send-keys -t "$TARGET_PANE" -- Enter
 fi
 
 echo "✅ Launched ${TASK_NAME} in ${TEAM_SESSION}"

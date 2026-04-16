@@ -13,7 +13,6 @@ members = [
     "src/codex-ipc",
     "src/codex-llm",
     "src/codex-drive",
-    "src/codex-patcher",
     "src/cortex-monitoring",
     "src/cortex",
     "src/cortex-memory",
@@ -44,7 +43,6 @@ codex-memory = { path = "src/codex-memory" }
 codex-exec = { path = "src/codex-exec" }
 codex-ipc = { path = "src/codex-ipc" }
 codex-llm = { path = "src/codex-llm" }
-codex-patcher = { path = "src/codex-patcher" }
 cortex-monitoring = { path = "src/cortex-monitoring" }
 aiciv-hooks = { path = "src/aiciv-hooks" }
 aiciv-auth = { path = "src/aiciv-auth" }
@@ -66,5 +64,3 @@ ed25519-dalek = { version = "2", features = ["rand_core"] }
 base64 = "0.22"
 toml = "0.8"
 futures = "0.3"
-patch = "0.7"
-diffy = "0.4"

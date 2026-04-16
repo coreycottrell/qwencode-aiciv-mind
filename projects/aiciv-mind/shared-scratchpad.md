@@ -529,3 +529,42 @@
   - TO mind-hooks: Hook integration points in ThinkLoop are unchanged -- still at the same line locations (tool dispatch path and LLM chat call). The `self.provider.chat()` call is the hook target for `PreModelCall`/`PostModelCall`.
 
 ---
+
+### mind-coordination | 2026-04-16 serve-mode-hooks-fix
+**Changed**: Fixed CRITICAL safety gap in `src/cortex/src/main.rs` `serve_mode` function. The `build_executor()` call (previously at line 980) was missing `.with_hooks()`, meaning child minds running in `--serve --think` mode had ZERO hook coverage -- all PreToolUse/PostToolUse safety hooks were bypassed. Added the same hook-loading pattern that `daemon_mode` uses: load `config/hooks.json` via `aiciv_hooks::config::HooksSettings::from_json_file()`, build `HookDispatcher::from_settings()`, and chain `.with_hooks(hook_dispatcher)` onto the executor. Also moved `project_root` declaration before the executor creation so it is available for the hooks config path.
+**Blocked**: Nothing.
+**Next**: mind-hooks should verify that the hooks.json config format is documented and that the serve-mode hook loading is tested (e.g., an integration test that starts serve_mode with a hooks.json and confirms hooks fire on tool use).
+**Interface Note**: No interface changes. The fix only adds hook wiring that was missing -- same pattern already used in daemon_mode. No type changes, no signature changes.
+
+---
+
+### mind-model-router | 2026-04-16 wire-aiciv-auth-into-ollama-client
+**Changed**: Wired `aiciv-auth` `AuthProvider` trait into `OllamaClient` in codex-llm. This was Fix 2 (CRITICAL) -- the auth crate had 20 passing tests but was never imported by any other crate. Changes:
+1. Added `aiciv-auth = { workspace = true }` to `src/codex-llm/Cargo.toml`
+2. Added `auth_provider: Option<Arc<dyn AuthProvider>>` field to `OllamaClient` struct
+3. Added `with_auth_provider()` builder method and `auth_provider()` accessor
+4. Modified `chat()` auth logic: tries AuthProvider first, falls back to `config.api_key` on error or `None`, preserving full backward compatibility
+5. Added 4 integration tests (all pass): `client_default_has_no_auth_provider`, `client_with_auth_provider_sets_provider`, `client_auth_provider_with_rate_limiter_both_set`, `client_without_auth_provider_backward_compatible`
+All 66 unit tests + 5 integration tests pass. Zero regressions.
+**Blocked**: Nothing.
+**Next**: mind-coordination should wire an `AuthProvider` into the `OllamaClient` during cortex boot (in `main.rs` or wherever the client is constructed) -- e.g., `ApiKeyProvider::from_env("ollama", "OLLAMA_API_KEY")` wrapped in `Arc`. This completes the auth pipeline from credential storage through to HTTP requests.
+**Interface Note**: New public API on `OllamaClient`: `with_auth_provider(Arc<dyn AuthProvider>) -> Self` and `auth_provider() -> Option<&Arc<dyn AuthProvider>>`. No breaking changes -- existing construction without auth_provider still works identically.
+
+---
+
+### mind-hooks | 2026-04-16 fix3-fix4-fix5-cleanup
+
+**Changed**:
+- **Fix 3 (CRITICAL): Dropped codex-patcher from workspace.** Removed `src/codex-patcher` from workspace members in root `Cargo.toml`. Removed `codex-patcher = { path = "src/codex-patcher" }` from workspace deps. Removed `patch = "0.7"` and `diffy = "0.4"` workspace deps (only codex-patcher used them). Removed `codex-patcher = { workspace = true }` from `src/cortex/Cargo.toml` deps. Removed `[[bin]] cortex-codex` entry from cortex Cargo.toml. Deleted `src/cortex/src/bin/cortex-codex.rs` (only consumer of codex-patcher). The `src/codex-patcher/` directory is preserved as historical reference but no longer compiled.
+- **Fix 4 (HIGH): Created `config/hooks.json`.** Contains documented default template with `_comment` fields explaining all valid event types and fields. Includes two example hooks: (1) a `pre_tool_use` bash safety gate that blocks dangerous commands (`rm -rf /`, `dd if=`, `mkfs`, fork bombs), scoped to `tool_names: ["bash"]`, required=true, 3s timeout; (2) a `session_start` no-op logger, required=false, 2s timeout. Format matches `HooksSettings::from_json_file()` expectations (top-level `hooks` array of `HookConfig` entries).
+- **Fix 5 (document only): Added TODO comment to `src/codex-exec/src/tools/bash.rs`.** Three-line comment before `Command::new("bash")` documenting the Landlock/bwrap isolation gap per Proof RED TEAM Finding 6.
+
+**Verification**: `cargo check` passes (full workspace). `cargo test -p aiciv-hooks` 25/25. `cargo test -p cortex` 35/35. `cargo test -p codex-exec` 30/30. Zero regressions.
+
+**Blocked**: Nothing.
+
+**Next**: Integration test for serve_mode hook loading (per mind-coordination's note). Consider wiring `config/hooks.json` loading into cortex boot sequence with fallback when file is absent.
+
+**Interface Note**: No interface changes. codex-patcher removal is purely subtractive. hooks.json is a new config file consumed by existing `HooksSettings::from_json_file()`. bash.rs TODO is comment-only.
+
+---

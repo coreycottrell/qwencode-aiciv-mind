@@ -11,6 +11,7 @@ codex-roles = { workspace = true }
 codex-exec = { workspace = true }
 codex-memory = { workspace = true }
 codex-redteam = { workspace = true }
+aiciv-auth = { workspace = true }
 async-trait = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }

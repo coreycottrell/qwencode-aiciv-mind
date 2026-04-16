@@ -977,8 +977,29 @@ async fn serve_mode(args: &[String]) {
 
     if think_mode {
         // Create ThinkLoop components — this child will THINK about delegated tasks
-        let executor = build_executor();
         let project_root = std::env::current_dir().unwrap_or_default();
+
+        // Build hook dispatcher from config (if hooks.json exists)
+        let hooks_config_path = project_root.join("config").join("hooks.json");
+        let hook_dispatcher = if hooks_config_path.exists() {
+            match aiciv_hooks::config::HooksSettings::from_json_file(&hooks_config_path) {
+                Ok(settings) => {
+                    let dispatcher = aiciv_hooks::HookDispatcher::from_settings(&settings);
+                    info!(hooks = settings.hooks.len(), "Hook dispatcher loaded from config (serve mode)");
+                    Arc::new(dispatcher)
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "Failed to load hooks config, using empty dispatcher");
+                    Arc::new(aiciv_hooks::HookDispatcher::new())
+                }
+            }
+        } else {
+            info!("No hooks.json found, using empty hook dispatcher");
+            Arc::new(aiciv_hooks::HookDispatcher::new())
+        };
+
+        let executor = build_executor()
+            .with_hooks(hook_dispatcher);
 
         // Persistent memory: data/memory/{mind_id}.db (survives restarts)
         let memory_dir = project_root.join("data").join("memory");

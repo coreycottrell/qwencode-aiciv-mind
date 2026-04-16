@@ -53,10 +53,6 @@ path = "src/bin/evolution_proof.rs"
 name = "evolution_full"
 path = "src/bin/evolution_full.rs"
 
-[[bin]]
-name = "cortex-codex"
-path = "src/bin/cortex-codex.rs"
-
 [dependencies]
 codex-roles = { workspace = true }
 codex-coordination = { workspace = true }
@@ -71,7 +67,6 @@ codex-memory = { workspace = true }
 codex-exec = { workspace = true }
 codex-ipc = { workspace = true }
 codex-llm = { workspace = true }
-codex-patcher = { workspace = true }
 cortex-monitoring = { workspace = true }
 aiciv-hooks = { workspace = true }
 anyhow = "1"
