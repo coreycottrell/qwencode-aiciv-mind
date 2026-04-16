@@ -4,6 +4,9 @@
 //! are retried up to 3 times with exponential backoff (1s, 2s, 4s).
 //! Non-retryable errors (4xx except 429, parse errors) fail immediately.
 
+use async_trait::async_trait;
+
+use crate::provider::LlmProvider;
 use crate::rate_limiter::RateLimiter;
 use codex_exec::ToolDefinition;
 use reqwest::Client;
@@ -533,6 +536,21 @@ impl OllamaClient {
 
     pub fn config(&self) -> &OllamaConfig {
         &self.config
+    }
+}
+
+#[async_trait]
+impl LlmProvider for OllamaClient {
+    async fn chat(
+        &self,
+        messages: &[ChatMessage],
+        tools: Option<&[ToolSchema]>,
+    ) -> Result<ChatResponse, LlmError> {
+        self.chat(messages, tools).await
+    }
+
+    fn model_name(&self) -> &str {
+        &self.config.model
     }
 }
 

@@ -9,10 +9,12 @@
 
 pub mod ollama;
 pub mod prompt;
+pub mod provider;
 pub mod rate_limiter;
 pub mod think_loop;
 
 pub use ollama::{OllamaClient, OllamaConfig, ModelRouter, ToolSchema, FunctionSchema};
 pub use prompt::PromptBuilder;
+pub use provider::LlmProvider;
 pub use rate_limiter::RateLimiter;
-pub use think_loop::{ThinkLoop, ThinkResult, ToolInterceptor, CompositeInterceptor};
+pub use think_loop::{ThinkLoop, ThinkLoopConfig, ThinkResult, ToolInterceptor, CompositeInterceptor};

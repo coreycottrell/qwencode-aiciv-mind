@@ -380,9 +380,9 @@ Be thorough. Write at least 200 words of genuine analysis."#,
 
             let think_config = ThinkLoopConfig {
                 max_iterations: 10,
-                ollama: ollama_config,
             };
-            let think_loop = ThinkLoop::new(think_config);
+            let provider = OllamaClient::new(ollama_config);
+            let think_loop = ThinkLoop::new(Box::new(provider), think_config);
 
             let prompt = PromptBuilder::new(Role::Agent, format!("evo-{}", team_name))
                 .add_context("You are an evolution team member. Use bash to read context and write your output file. Be concise with tool calls.");

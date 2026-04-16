@@ -7,6 +7,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use aiciv_hooks::HookDispatcher;
 use codex_drive::{DriveConfig, DriveLoop, TaskStore};
 use codex_drive::event_bus::{self, EventBus, ExternalSender};
 use codex_types::MindEvent;
@@ -61,6 +62,7 @@ pub async fn boot_daemon(
     mind_id: &str,
     role_str: &str,
     drive_config: Option<DriveConfig>,
+    hooks: Option<Arc<HookDispatcher>>,
 ) -> Result<(DaemonHandles, EventBus), Box<dyn std::error::Error + Send + Sync>> {
     let tasks_dir = project_root.join("data").join("tasks");
     let _ = std::fs::create_dir_all(&tasks_dir);
@@ -79,13 +81,17 @@ pub async fn boot_daemon(
     let (bus, external_tx, drive_tx) = event_bus::create();
     let external_pending = || false;
 
-    let drive_loop = Arc::new(DriveLoop::new(
+    let mut drive_loop_builder = DriveLoop::new(
         config,
         task_store.clone(),
         drive_tx,
         external_pending,
         role_str,
-    ));
+    );
+    if let Some(hooks) = hooks {
+        drive_loop_builder = drive_loop_builder.with_hooks(hooks);
+    }
+    let drive_loop = Arc::new(drive_loop_builder);
 
     let drive_handle = {
         let dl = drive_loop.clone();

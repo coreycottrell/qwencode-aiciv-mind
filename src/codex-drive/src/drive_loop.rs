@@ -22,6 +22,7 @@
 use std::time::Duration;
 use std::sync::Arc;
 
+use aiciv_hooks::HookDispatcher;
 use codex_types::{DriveEvent, EventPriority};
 use tokio::sync::watch;
 use tokio::sync::Mutex;
@@ -111,6 +112,8 @@ pub struct DriveLoop {
     external_pending: Arc<dyn Fn() -> bool + Send + Sync>,
     /// Role string for prompt generation.
     role_str: String,
+    /// Optional hook dispatcher for lifecycle events.
+    hooks: Option<Arc<HookDispatcher>>,
 }
 
 impl DriveLoop {
@@ -133,7 +136,14 @@ impl DriveLoop {
             completion_tx: Arc::new(completion_tx),
             external_pending: Arc::new(external_pending_fn),
             role_str: role_str.into(),
+            hooks: None,
         }
+    }
+
+    /// Set the hook dispatcher for lifecycle event firing.
+    pub fn with_hooks(mut self, dispatcher: Arc<HookDispatcher>) -> Self {
+        self.hooks = Some(dispatcher);
+        self
     }
 
     /// Get a sender handle to signal task completions to the DriveLoop.
@@ -164,6 +174,18 @@ impl DriveLoop {
             role = %self.role_str,
             "DriveLoop starting"
         );
+
+        // Fire SessionStart hook
+        if let Some(ref hooks) = self.hooks {
+            let event = aiciv_hooks::HookEvent::SessionStart {
+                session_id: self.role_str.clone(),
+                metadata: serde_json::json!({
+                    "boot_settle_ms": self.config.boot_settle.as_millis(),
+                    "idle_threshold_ms": self.config.idle_threshold.as_millis(),
+                }),
+            };
+            let _responses = hooks.fire(&event).await;
+        }
 
         // Phase 1: Boot settle
         tokio::time::sleep(self.config.boot_settle).await;
@@ -217,6 +239,16 @@ impl DriveLoop {
 
             if let Some(event) = event {
                 debug!(event = ?event, "DriveLoop emitting event");
+
+                // Fire DriveEvent hook before emitting
+                if let Some(ref hooks) = self.hooks {
+                    let hook_event = aiciv_hooks::HookEvent::DriveEvent {
+                        session_id: self.role_str.clone(),
+                        drive_event: event.clone(),
+                    };
+                    let _responses = hooks.fire(&hook_event).await;
+                }
+
                 if self.drive_tx.try_send(event).is_err() {
                     // Channel full — backpressure working as designed
                     debug!("Drive channel full — event dropped (backpressure)");

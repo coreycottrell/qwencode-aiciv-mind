@@ -27,10 +27,11 @@ use codex_roles::Role;
 use tracing::{info, warn};
 
 use crate::ollama::{
-    ChatMessage, ChatResponse, FunctionSchema, OllamaClient, OllamaConfig,
+    ChatMessage, ChatResponse, FunctionSchema,
     ToolSchema,
 };
 use crate::prompt::PromptBuilder;
+use crate::provider::LlmProvider;
 use crate::rate_limiter::RateLimiter;
 
 /// Tool interceptor — inject custom tools into the ThinkLoop.
@@ -83,22 +84,22 @@ impl ToolInterceptor for CompositeInterceptor<'_> {
 pub struct ThinkLoopConfig {
     /// Maximum number of LLM turns before forcing completion.
     pub max_iterations: u32,
-    /// Model config.
-    pub ollama: OllamaConfig,
 }
 
 impl Default for ThinkLoopConfig {
     fn default() -> Self {
         Self {
             max_iterations: 15,
-            ollama: OllamaConfig::default(),
         }
     }
 }
 
 /// The thinking loop — Cortex's core reasoning engine.
+///
+/// Accepts any `LlmProvider` implementation (OllamaClient, OpenAI-compat, etc.).
+/// The ThinkLoop does not know or care which model backend is behind the trait.
 pub struct ThinkLoop {
-    client: OllamaClient,
+    provider: Box<dyn LlmProvider>,
     config: ThinkLoopConfig,
     /// Per-turn adversarial checker — fires after every tool execution.
     challenger: Challenger,
@@ -106,7 +107,7 @@ pub struct ThinkLoop {
     scratchpad_dir: Option<std::path::PathBuf>,
     /// Directory for Hum observation JSONL files. When set, enables hum_digest tool.
     hum_dir: Option<std::path::PathBuf>,
-    /// Rate limiter for Ollama usage tracking. When set, enables ollama_usage tool.
+    /// Rate limiter for usage tracking. When set, enables ollama_usage tool.
     rate_limiter: Option<RateLimiter>,
 }
 
@@ -137,9 +138,13 @@ pub struct ToolCallRecord {
 }
 
 impl ThinkLoop {
-    pub fn new(config: ThinkLoopConfig) -> Self {
+    /// Create a new ThinkLoop with the given LLM provider and config.
+    ///
+    /// The provider must already be fully configured (rate limiter, API key, etc.)
+    /// before being passed here. ThinkLoop treats it as an opaque `LlmProvider`.
+    pub fn new(provider: Box<dyn LlmProvider>, config: ThinkLoopConfig) -> Self {
         Self {
-            client: OllamaClient::new(config.ollama.clone()),
+            provider,
             config,
             challenger: Challenger::default(),
             scratchpad_dir: None,
@@ -161,10 +166,13 @@ impl ThinkLoop {
         self
     }
 
-    /// Enable rate limiting and the ollama_usage tool.
-    /// Also attaches the limiter to the OllamaClient for circuit breaker protection.
+    /// Enable the `ollama_usage` tool for usage tracking visibility.
+    ///
+    /// Note: the rate limiter for actual LLM call throttling should be attached
+    /// to the provider (e.g., `OllamaClient::with_rate_limiter()`) BEFORE passing
+    /// the provider to `ThinkLoop::new()`. This method only enables the usage
+    /// reporting tool so the LLM can check its own consumption.
     pub fn with_rate_limiter(mut self, limiter: RateLimiter) -> Self {
-        self.client = self.client.with_rate_limiter(limiter.clone());
         self.rate_limiter = Some(limiter);
         self
     }
@@ -308,7 +316,7 @@ impl ThinkLoop {
                     "You have used all available iterations. Please provide your final response now, \
                      summarizing what you have accomplished and any remaining work.",
                 ));
-                let final_resp = self.client.chat(&messages, None).await
+                let final_resp = self.provider.chat(&messages, None).await
                     .map_err(|e| ThinkError::Llm(e.to_string()))?;
 
                 let response = extract_content(&final_resp);
@@ -325,7 +333,7 @@ impl ThinkLoop {
             info!(iteration = iteration, "ThinkLoop turn");
 
             let tools = if all_schemas.is_empty() { None } else { Some(all_schemas.as_slice()) };
-            let resp = self.client.chat(&messages, tools).await
+            let resp = self.provider.chat(&messages, tools).await
                 .map_err(|e| ThinkError::Llm(e.to_string()))?;
 
             let Some(choice) = resp.choices.first() else {
@@ -1277,7 +1285,6 @@ mod tests {
     fn default_config() {
         let cfg = ThinkLoopConfig::default();
         assert_eq!(cfg.max_iterations, 15);
-        assert_eq!(cfg.ollama.model, "qwen2.5:7b");
     }
 
     #[test]

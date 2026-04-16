@@ -164,8 +164,28 @@ async fn daemon_mode(args: &[String]) {
 
     let project_root = std::env::current_dir().unwrap_or_default();
 
+    // Build hook dispatcher from config (if hooks.json exists)
+    let hooks_config_path = project_root.join("config").join("hooks.json");
+    let hook_dispatcher = if hooks_config_path.exists() {
+        match aiciv_hooks::config::HooksSettings::from_json_file(&hooks_config_path) {
+            Ok(settings) => {
+                let dispatcher = aiciv_hooks::HookDispatcher::from_settings(&settings);
+                info!(hooks = settings.hooks.len(), "Hook dispatcher loaded from config");
+                Arc::new(dispatcher)
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "Failed to load hooks config, using empty dispatcher");
+                Arc::new(aiciv_hooks::HookDispatcher::new())
+            }
+        }
+    } else {
+        info!("No hooks.json found, using empty hook dispatcher");
+        Arc::new(aiciv_hooks::HookDispatcher::new())
+    };
+
     // Build executor (bash, read, write, glob, grep)
-    let executor = build_executor();
+    let executor = build_executor()
+        .with_hooks(hook_dispatcher.clone());
 
     // Persistent memory
     let memory_dir = project_root.join("data").join("memory");
@@ -216,7 +236,7 @@ async fn daemon_mode(args: &[String]) {
     });
 
     // Boot drive subsystem in daemon mode — returns EventBus to us
-    let (daemon_handles, mut bus) = drive::boot_daemon(&project_root, &mind_id, "primary", drive_config).await
+    let (daemon_handles, mut bus) = drive::boot_daemon(&project_root, &mind_id, "primary", drive_config, Some(hook_dispatcher.clone())).await
         .expect("Failed to boot drive subsystem");
     let task_store = daemon_handles.task_store.clone();
     let completion_sender = daemon_handles.drive_loop.completion_sender();
@@ -225,12 +245,12 @@ async fn daemon_mode(args: &[String]) {
     let ollama_config = router.config_for_role(role);
     let think_config = ThinkLoopConfig {
         max_iterations: 15,
-        ollama: codex_llm::ollama::OllamaConfig {
-            max_tokens: 4096,
-            ..ollama_config
-        },
     };
-    let think_loop = codex_llm::think_loop::ThinkLoop::new(think_config)
+    let provider = OllamaClient::new(codex_llm::ollama::OllamaConfig {
+        max_tokens: 4096,
+        ..ollama_config
+    }).with_rate_limiter(rate_limiter.clone());
+    let think_loop = codex_llm::think_loop::ThinkLoop::new(Box::new(provider), think_config)
         .with_scratchpad_dir(scratchpad_dir.clone())
         .with_hum_dir(hum_dir.clone())
         .with_rate_limiter(rate_limiter.clone());
@@ -1330,10 +1350,6 @@ impl ThinkDelegateHandler {
 
         let think_config = ThinkLoopConfig {
             max_iterations: 15,
-            ollama: OllamaConfig {
-                max_tokens: 1024,
-                ..ollama_config
-            },
         };
 
         let tool_schemas = OllamaClient::tool_schemas(
@@ -1395,7 +1411,11 @@ impl ThinkDelegateHandler {
         let metrics_dir = project_root.join("data").join("metrics");
         let _ = std::fs::create_dir_all(&metrics_dir);
         let rate_limiter = codex_llm::RateLimiter::new(metrics_dir);
-        let think_loop = ThinkLoop::new(think_config)
+        let provider = OllamaClient::new(OllamaConfig {
+            max_tokens: 1024,
+            ..ollama_config
+        }).with_rate_limiter(rate_limiter.clone());
+        let think_loop = ThinkLoop::new(Box::new(provider), think_config)
             .with_scratchpad_dir(scratchpad_dir)
             .with_hum_dir(hum_dir)
             .with_rate_limiter(rate_limiter);
@@ -2241,14 +2261,14 @@ async fn demo_mode() {
 
     let think_config = ThinkLoopConfig {
         max_iterations: 3,
-        ollama: OllamaConfig {
-            model: "qwen2.5:7b".into(),
-            max_tokens: 512,
-            ..OllamaConfig::default()
-        },
     };
+    let think_provider = OllamaClient::new(OllamaConfig {
+        model: "qwen2.5:7b".into(),
+        max_tokens: 512,
+        ..OllamaConfig::default()
+    });
 
-    let think_loop = ThinkLoop::new(think_config);
+    let think_loop = ThinkLoop::new(Box::new(think_provider), think_config);
     let think_prompt = PromptBuilder::new(Role::Agent, "thinking-agent")
         .add_context("You are running inside Cortex. Be concise.");
 
@@ -2294,13 +2314,13 @@ async fn demo_mode() {
 
     let memory_think_config = ThinkLoopConfig {
         max_iterations: 4,
-        ollama: OllamaConfig {
-            model: "qwen2.5:7b".into(),
-            max_tokens: 512,
-            ..OllamaConfig::default()
-        },
     };
-    let memory_think_loop = ThinkLoop::new(memory_think_config);
+    let memory_provider = OllamaClient::new(OllamaConfig {
+        model: "qwen2.5:7b".into(),
+        max_tokens: 512,
+        ..OllamaConfig::default()
+    });
+    let memory_think_loop = ThinkLoop::new(Box::new(memory_provider), memory_think_config);
 
     // Load AGENTS.md for the thinking agent
     let agents_dir = std::env::current_exe()

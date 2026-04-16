@@ -4,6 +4,7 @@
 //! and shell. They produce output the LLM can reason about.
 
 pub mod bash;
+pub mod edit;
 pub mod read;
 pub mod write;
 pub mod glob;
@@ -20,6 +21,7 @@ pub fn register_builtins(registry: &mut ToolRegistry, workspace_root: PathBuf) {
     registry.register(Arc::new(bash::BashTool::new(workspace_root.clone())));
     registry.register(Arc::new(read::ReadTool));
     registry.register(Arc::new(write::WriteTool));
+    registry.register(Arc::new(edit::EditTool));
     registry.register(Arc::new(glob::GlobTool::new(workspace_root.clone())));
     registry.register(Arc::new(grep::GrepTool::new(workspace_root)));
     registry.register(Arc::new(web_search::WebSearchTool));

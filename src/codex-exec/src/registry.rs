@@ -12,6 +12,7 @@ use std::sync::Arc;
 use thiserror::Error;
 use tracing::info;
 
+use aiciv_hooks::HookDispatcher;
 use crate::sandbox::SandboxEnforcer;
 
 /// A tool the LLM can invoke.
@@ -158,21 +159,42 @@ impl Default for ToolRegistry {
 pub struct ToolExecutor {
     registry: ToolRegistry,
     sandbox: SandboxEnforcer,
+    hooks: Option<Arc<HookDispatcher>>,
 }
 
 impl ToolExecutor {
     pub fn new(registry: ToolRegistry, sandbox: SandboxEnforcer) -> Self {
-        Self { registry, sandbox }
+        Self { registry, sandbox, hooks: None }
+    }
+
+    /// Set the hook dispatcher for lifecycle event firing.
+    pub fn with_hooks(mut self, dispatcher: Arc<HookDispatcher>) -> Self {
+        self.hooks = Some(dispatcher);
+        self
     }
 
     /// Execute a tool call with full policy enforcement.
     ///
-    /// Pipeline: role filter → exec policy → sandbox check → execute
+    /// Pipeline: hooks(pre) → role filter → exec policy → sandbox check → execute → hooks(post)
     pub async fn execute(
         &self,
         call: &ToolCall,
         role: Role,
     ) -> Result<ToolResult, ExecError> {
+        // Step 0: Fire PreToolUse hook (if dispatcher is configured)
+        if let Some(ref hooks) = self.hooks {
+            let event = aiciv_hooks::HookEvent::PreToolUse {
+                session_id: String::new(), // session_id not available at this layer
+                tool_name: call.name.clone(),
+                tool_input: call.arguments.clone(),
+            };
+            let decision = hooks.fire_blocking(&event).await;
+            if let aiciv_hooks::Decision::Block { reason } = decision {
+                info!(tool = %call.name, %reason, "Tool blocked by hook");
+                return Ok(ToolResult::err(format!("Blocked by hook: {reason}")));
+            }
+        }
+
         // Step 1: Check if tool exists
         let handler = self
             .registry
@@ -243,6 +265,23 @@ impl ToolExecutor {
             output_len = result.output.len(),
             "Tool completed"
         );
+
+        // Step 6: Fire PostToolUse hook (if dispatcher is configured)
+        if let Some(ref hooks) = self.hooks {
+            let output_json = serde_json::json!({
+                "success": result.success,
+                "output": result.output,
+                "error": result.error,
+            });
+            let event = aiciv_hooks::HookEvent::PostToolUse {
+                session_id: String::new(),
+                tool_name: call.name.clone(),
+                tool_input: call.arguments.clone(),
+                tool_output: output_json,
+            };
+            // Fire non-blocking — collect responses for future use (stop, context injection)
+            let _responses = hooks.fire(&event).await;
+        }
 
         Ok(result)
     }

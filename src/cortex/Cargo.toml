@@ -73,6 +73,7 @@ codex-ipc = { workspace = true }
 codex-llm = { workspace = true }
 codex-patcher = { workspace = true }
 cortex-monitoring = { workspace = true }
+aiciv-hooks = { workspace = true }
 anyhow = "1"
 reqwest = { workspace = true }
 async-trait = { workspace = true }

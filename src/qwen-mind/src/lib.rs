@@ -18,7 +18,7 @@ pub use mind::Mind;
 pub use scratchpad::Scratchpad;
 pub use fitness::FitnessTracker;
 pub use memory::MindMemory;
-pub use llm::OllamaClient;
+pub use llm::{OllamaClient, LlmProvider};
 pub use delegation::{DelegationError, DelegationRules};
 pub use planning::{PlanningGate, TaskComplexity};
 pub use spawner::MindProcess;

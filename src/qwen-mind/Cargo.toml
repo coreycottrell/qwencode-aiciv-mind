@@ -10,6 +10,7 @@ name = "qwen-mind"
 path = "src/bin/main.rs"
 
 [dependencies]
+codex-llm = { workspace = true }
 cortex-memory = { path = "../cortex-memory" }
 codex-suite-client = { path = "../codex-suite-client" }
 serde = { workspace = true }

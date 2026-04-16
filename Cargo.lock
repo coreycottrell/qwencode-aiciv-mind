@@ -12,6 +12,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "aiciv-auth"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "aiciv-hooks"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "codex-types",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "allocator-api2"
 version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -207,6 +234,7 @@ dependencies = [
 name = "codex-drive"
 version = "0.1.0"
 dependencies = [
+ "aiciv-hooks",
  "chrono",
  "codex-roles",
  "codex-types",
@@ -223,6 +251,7 @@ dependencies = [
 name = "codex-exec"
 version = "0.1.0"
 dependencies = [
+ "aiciv-hooks",
  "async-trait",
  "codex-roles",
  "serde",
@@ -418,6 +447,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 name = "cortex"
 version = "0.1.0"
 dependencies = [
+ "aiciv-hooks",
  "anyhow",
  "async-trait",
  "chrono",
@@ -1762,6 +1792,7 @@ dependencies = [
  "anyhow",
  "base64",
  "chrono",
+ "codex-llm",
  "codex-suite-client",
  "cortex-memory",
  "dotenvy",

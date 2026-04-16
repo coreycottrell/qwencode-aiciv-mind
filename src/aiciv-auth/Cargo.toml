@@ -1,20 +1,18 @@
 [package]
-name = "codex-exec"
+name = "aiciv-auth"
+description = "Provider authentication — composable auth providers for LLM APIs, MCP servers, and external services"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-repository.workspace = true
-description = "Tool execution engine — where Cortex meets the filesystem."
 
 [dependencies]
-codex-roles = { workspace = true }
-aiciv-hooks = { workspace = true }
-tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+tokio = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["test-util"] }
+tokio = { workspace = true, features = ["full"] }
+tempfile = "3"

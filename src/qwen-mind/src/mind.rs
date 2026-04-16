@@ -8,7 +8,7 @@ use crate::identity::{Manifest, Role};
 use crate::memory::MindMemory;
 use crate::scratchpad::Scratchpad;
 use crate::fitness::FitnessTracker;
-use crate::llm::{OllamaClient, LlmError};
+use crate::llm::{LlmError, LlmProvider, OllamaClient, OllamaConfig};
 use crate::delegation::DelegationRules;
 use crate::planning::PlanningGate;
 
@@ -27,7 +27,7 @@ pub struct Mind {
     pub memory: MindMemory,
     pub scratchpad: Scratchpad,
     pub fitness: FitnessTracker,
-    pub llm: OllamaClient,
+    pub llm: Box<dyn LlmProvider>,
     pub delegation: DelegationRules,
     pub root_dir: std::path::PathBuf,
 }
@@ -47,7 +47,10 @@ impl Mind {
 
         let scratchpad = Scratchpad::new(&root_dir, &manifest.identity);
         let fitness = FitnessTracker::new(&root_dir, &manifest.identity);
-        let llm = OllamaClient::from_env();
+        let llm: Box<dyn LlmProvider> = Box::new(OllamaClient::new(OllamaConfig::from_env(
+            std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "qwen2.5:7b".into()),
+            std::env::var("OLLAMA_BASE_URL").unwrap_or_else(|_| "http://localhost:11434".into()),
+        )));
         let delegation = DelegationRules::new(manifest.role, &manifest.vertical);
 
         Ok(Self {
@@ -120,28 +123,27 @@ impl Mind {
             user_prompt.push_str(&format!("\n\nRecent scratchpad:\n{scratchpad_recent}"));
         }
 
-        // Step 4: Execute via LLM
-        let llm_response = self.llm.chat(&system_prompt, &user_prompt).await?;
+        // Step 4: Execute via LLM (using unified provider trait)
+        let content = self.llm.simple_chat(&system_prompt, &user_prompt).await?;
 
         // Step 5: Write memory
-        let memory_id = self.persist_result(task, &llm_response.content).await;
+        let memory_id = self.persist_result(task, &content).await;
 
         // Step 6: Update scratchpad
         self.scratchpad.append(&format!(
             "Task: {}\nResult: {}",
             task.chars().take(80).collect::<String>(),
-            llm_response.content.chars().take(200).collect::<String>()
+            content.chars().take(200).collect::<String>()
         ));
 
-        // Step 7: Record fitness
-        let had_errors = llm_response.retries > 0;
+        // Step 7: Record fitness (retries are handled transparently by the provider)
         let memory_written = memory_id.is_some();
-        self.fitness.record(task, true, had_errors, &llm_response.content, memory_written);
+        self.fitness.record(task, true, false, &content, memory_written);
 
         let score = self.fitness.average();
 
         Ok(TaskResult {
-            content: llm_response.content,
+            content,
             success: true,
             memory_id,
             fitness_score: score,
