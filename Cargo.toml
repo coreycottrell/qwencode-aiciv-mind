@@ -19,6 +19,7 @@ members = [
     "src/qwen-mind",
     "src/aiciv-hooks",
     "src/aiciv-auth",
+    "src/aiciv-tui",
 ]
 resolver = "2"
 
@@ -46,6 +47,7 @@ codex-llm = { path = "src/codex-llm" }
 cortex-monitoring = { path = "src/cortex-monitoring" }
 aiciv-hooks = { path = "src/aiciv-hooks" }
 aiciv-auth = { path = "src/aiciv-auth" }
+aiciv-tui = { path = "src/aiciv-tui" }
 
 # External dependencies
 anyhow = "1"

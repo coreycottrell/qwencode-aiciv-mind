@@ -659,3 +659,27 @@ All 66 unit tests + 5 integration tests pass. Zero regressions.
 **Interface Note**: `cite()` signature changed in BOTH `codex-memory::MemoryStore` and `cortex-memory::MemoryStore` — now requires `mind_id: &str` as third parameter. `MemoryError::Unauthorized` added to both crates. Any code calling `cite()` without the `mind_id` parameter will get a compile error.
 
 ---
+
+### mind-tui | 2026-04-16 Phase 1 scaffold + Phase 3 sanitization
+**Changed**: Created `src/aiciv-tui/` crate from scratch. 6 source files:
+- `Cargo.toml` — ratatui 0.29, crossterm 0.28, pulldown-cmark 0.12, plus workspace deps (codex-llm, codex-exec, codex-roles, aiciv-hooks)
+- `src/lib.rs` — re-exports app, ui, sanitize, markdown modules
+- `src/main.rs` — CLI entry point: parses --model/--url/--mind-id/--workspace, creates OllamaClient + ThinkLoop + ToolRegistry + ToolExecutor, sets up ratatui terminal, runs App
+- `src/app.rs` — `App` struct with ChatEntry enum (User/Assistant/ToolCall/ToolResult/System/Error), event loop, keyboard input handling, ThinkLoop integration
+- `src/ui.rs` — 4-region layout (header, chat, input, status bar) with color-coded message types
+- `src/sanitize.rs` — `sanitize_for_terminal()` strips CSI, OSC, DCS, APC, PM, SOS sequences + control chars + DEL. 26 tests covering color codes, OSC 8 hyperlinks, clipboard attacks, mixed content, unicode preservation
+- `src/markdown.rs` — pulldown-cmark-based markdown to ratatui Spans (headers, bold, italic, code blocks, lists)
+- Updated workspace `Cargo.toml`: added `src/aiciv-tui` to members + `aiciv-tui` to workspace.dependencies
+- `cargo check -p aiciv-tui`: clean (0 warnings from aiciv-tui)
+- `cargo test -p aiciv-tui`: 40 tests passed (0 failed)
+
+**Blocked**: Nothing for Phase 1/3. Future phases will need:
+- Event stream from mind-model-router (DriveLoop integration) for real-time rendering
+- DisplayEvent / UserCommand types from mind-coordination (codex-types) for richer event handling
+- Skill command registry from mind-skills for slash command support
+
+**Next**: Phase 2 — async streaming (render LLM tokens as they arrive), scrollback navigation, slash command parsing, multi-line input
+
+**Interface Note**: The TUI currently calls `ThinkLoop::run()` synchronously (blocks until complete). For streaming, we will need either a streaming variant of ThinkLoop or an event channel. mind-model-router should consider exposing a token-by-token stream.
+
+---
