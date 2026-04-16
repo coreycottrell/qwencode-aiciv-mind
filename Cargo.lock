@@ -286,6 +286,8 @@ name = "codex-llm"
 version = "0.1.0"
 dependencies = [
  "aiciv-auth",
+ "aiciv-hooks",
+ "anyhow",
  "async-trait",
  "chrono",
  "codex-exec",
@@ -323,9 +325,12 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "codex-roles",
+ "cortex-memory",
  "regex",
  "serde",
  "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

@@ -5,9 +5,20 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+default = []
+memory = ["cortex-memory"]
+
 [dependencies]
 codex-roles = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }
 regex = "1"
+tracing = { workspace = true }
+
+# Optional: memory integration for contradiction checking
+cortex-memory = { path = "../cortex-memory", optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

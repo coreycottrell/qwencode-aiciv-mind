@@ -111,13 +111,15 @@ impl ImageGenInterceptor {
 
         let output_str = output_path.to_string_lossy().to_string();
 
-        // Use the Python google-genai SDK directly via inline script
-        // This avoids depending on ACG's image_gen.py and keeps Cortex self-contained
+        // Use the Python google-genai SDK directly via inline script.
+        // This avoids depending on ACG's image_gen.py and keeps Cortex self-contained.
+        // SECURITY: API key is passed via env var (GEMINI_API_KEY), NOT interpolated
+        // into the script text — prevents exposure via `ps aux` process argument lists.
         let python_script = format!(
             r#"
 import os, sys, json
-os.environ["GEMINI_API_KEY"] = "{api_key}"
-os.environ["GOOGLE_API_KEY"] = "{api_key}"
+
+_api_key = os.environ['GEMINI_API_KEY']
 
 try:
     from google import genai
@@ -126,7 +128,7 @@ except ImportError:
     print(json.dumps({{"error": "Install: pip install google-genai"}}))
     sys.exit(1)
 
-client = genai.Client(api_key="{api_key}")
+client = genai.Client(api_key=_api_key)
 
 try:
     response = client.models.generate_content(
@@ -156,7 +158,6 @@ except Exception as e:
     print(json.dumps({{"error": str(e)}}))
     sys.exit(1)
 "#,
-            api_key = api_key,
             enhanced_prompt_escaped = enhanced_prompt.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n"),
             aspect_ratio = aspect_ratio,
             output_escaped = output_str.replace('\\', "\\\\").replace('"', "\\\""),
@@ -182,6 +183,7 @@ except Exception as e:
             Command::new(&python_str)
                 .arg("-c")
                 .arg(&python_script)
+                .env("GEMINI_API_KEY", api_key)
                 .output(),
         )
         .await

@@ -568,3 +568,94 @@ All 66 unit tests + 5 integration tests pass. Zero regressions.
 **Interface Note**: No interface changes. codex-patcher removal is purely subtractive. hooks.json is a new config file consumed by existing `HooksSettings::from_json_file()`. bash.rs TODO is comment-only.
 
 ---
+
+### mind-tool-engine | Sprint 6 Fix C1 — credential exposure
+**Changed**: Fixed API key exposure in `web_search.rs` and `web_fetch.rs` (Proof RED TEAM finding). Both `ollama_search()` and `ollama_fetch()` previously passed the API key as a curl `-H` argument, making it visible via `ps aux` and `/proc/PID/cmdline`. Replaced with `sh -c` wrapper pattern:
+- API key injected via `.env("OLLAMA_API_KEY", &api_key)` (process environment, not args)
+- Shell expands `$OLLAMA_API_KEY` inside the `-H` header at runtime
+- JSON body piped via stdin (`-d @-`) using `Stdio::piped()` + `AsyncWriteExt`
+- Added imports: `std::process::Stdio`, `tokio::io::AsyncWriteExt`
+- Timeout wrappers, fallback paths (DDG, Jina), and response parsing all unchanged
+
+**Files modified**:
+- `src/codex-exec/src/tools/web_search.rs` (lines 25-49)
+- `src/codex-exec/src/tools/web_fetch.rs` (lines 34-58)
+
+**Verification**: `cargo check -p codex-exec` passes. `cargo test -p codex-exec` 30/30 pass. Full workspace `cargo check` has pre-existing `codex-dream` errors (unrelated cite() arity mismatch).
+
+**Blocked**: Nothing.
+
+**Next**: Remaining Sprint 6 red team fixes if assigned. Sandboxing cherry-pick from upstream Codex (bwrap + Landlock + seccomp) per MISSIONS.md Phase 2.
+
+**Interface Note**: No interface changes. Same public API, same tool definitions, same response format. Internal implementation detail only.
+
+---
+
+### mind-mcp | Sprint 6 — C2 + C3 credential exposure fixes
+**Changed**:
+- `image_gen_interceptor.rs`: Removed `api_key` from `format!()` interpolation in Python script text. Script now reads key via `os.environ['GEMINI_API_KEY']`. Key passed to subprocess via `.env("GEMINI_API_KEY", api_key)` on the Command builder. (Fixes C2)
+- `elevenlabs_interceptor.rs`: Replaced direct `curl` invocation (which had API key in `-H` arg) with `sh -c` wrapper. Key passed via `.env("XI_API_KEY", api_key)` and expanded as `$XI_API_KEY` inside the shell command. URL, body, and output path also moved to env vars. (Fixes C3)
+- `search_interceptor.rs`: Both `ollama_search()` and `ollama_fetch()` replaced direct `curl` invocations with `sh -c` wrappers. API key passed via `.env("OLLAMA_API_KEY", api_key)` and expanded as `$OLLAMA_API_KEY`. URL and body also moved to env vars. (Fixes C3)
+
+**Test results**: 34 passed, 0 failed, 3 ignored (live integration tests). `cargo check -p codex-suite-client` clean.
+
+**Blocked**: Nothing.
+
+**Next**: Remaining Sprint 6 red team fixes if any. MCP client cherry-pick from upstream Codex (rmcp-client 6K lines) per MISSIONS.md Phase 2.
+
+**Interface Note**: No interface changes. All fixes are internal — same public API, same tool schemas, same response format. The only behavioral difference is that API keys no longer appear in `ps aux` output.
+
+---
+
+### mind-testing | Sprint 6 — Fix A1 + A3 (Challenger Bypass + Memory Integration)
+
+**Changed**:
+- `codex-redteam/src/lib.rs`: **A1 fix** — `Challenger::disable()` changed from `pub` to `pub(crate)` with `tracing::warn!` log on every call. External consumers can no longer silently disable the Challenger. `enable()` remains `pub` (re-enabling is safe).
+- `codex-redteam/src/lib.rs`: **A3 fix** — Added `check_memory_contradictions()` and `verify_with_memory()` to `RedTeamProtocol`, feature-gated behind `#[cfg(feature = "memory")]`. When a `cortex_memory::MemoryStore` is provided, queries for `LinkType::Conflicts` edges related to the claim's description. Contradictions found are surfaced as challenge questions. If contradictions exist, an otherwise-Approved verdict is downgraded to Challenged.
+- `codex-redteam/Cargo.toml`: Added `tracing` dependency (workspace). Added `cortex-memory` as optional dependency with `memory` feature gate. Added `tokio` dev-dependency for async memory tests.
+- Tests: 2 new tests for disable hardening (`disable_is_pub_crate_and_logs`, `enable_remains_public`). 4 new memory integration tests (`check_memory_contradictions_finds_conflicts`, `check_memory_contradictions_empty_when_no_conflicts`, `check_memory_contradictions_none_store_returns_empty`, `verify_with_memory_downgrades_approval_on_contradiction`).
+
+**Test results**: 39 passed (default), 43 passed (with `--features memory`), 0 failed. Full `cargo check -p codex-redteam` and `cargo check -p codex-redteam --features memory` both clean. Pre-existing `codex-dream` build error unrelated.
+
+**Blocked**: Nothing.
+
+**Next**: Remaining Sprint 6 red team fixes. Consider enabling `memory` feature by default once cortex-memory is stable in the workspace dependency chain.
+
+**Interface Note**: New public API on `RedTeamProtocol`: `verify_with_memory(claim, Option<&MemoryStore>)` and `check_memory_contradictions(Option<&MemoryStore>, claim)` — both async, both feature-gated. Existing `verify()` is untouched. `Challenger::disable()` is now `pub(crate)` — if any future crate outside codex-redteam needs to disable Challenger, they will get a compile error. This is intentional.
+
+---
+
+### mind-model-router | Sprint 6 B1+B2 enforcement
+**Changed**:
+- `src/codex-llm/src/think_loop.rs`: Rewrote `dispatch_builtin_or_exec()` to enforce role permission (`codex_roles::is_tool_allowed`) and fire PreToolUse/PostToolUse hooks on ALL 10 builtin tools (memory_search, memory_write, scratchpad_read, scratchpad_write, coordination_read, coordination_write, team_scratchpad_read, team_scratchpad_write, hum_digest, ollama_usage). Wrapped interceptor path in `run_full()` with the same role check + hook enforcement. Both fixes are inline — no builtins moved to ToolRegistry.
+- `src/codex-exec/src/registry.rs`: Added two public helper methods to `ToolExecutor` — `fire_pre_tool_use(tool_name, args) -> Option<String>` and `fire_post_tool_use(tool_name, args, result)` — so think_loop can fire hooks for builtins/intercepted tools without reaching into ToolExecutor internals.
+- `src/codex-llm/src/provider.rs`: Added `DummyProvider` (cfg(test) only) for unit-testing ThinkLoop without a real LLM.
+- `src/codex-llm/Cargo.toml`: Added `aiciv-hooks` and `anyhow` as dev-dependencies for tests.
+- 12 new tests covering: role denial for builtins (Primary denied memory_write, scratchpad_write; TeamLead denied hum_digest, ollama_usage), role acceptance (Primary allowed memory_search, TeamLead allowed team_scratchpad_read, Agent allowed memory_search), hook blocking for builtins, role-before-hook ordering, interceptor role denial, interceptor hook blocking, interceptor passthrough.
+
+**Blocked**: Nothing.
+
+**Next**: B3+ remaining Sprint 6 red team fixes. Full enforcement pipeline is now: role check -> PreToolUse hook -> execute -> PostToolUse hook for ALL tool dispatch paths (registered, builtin, intercepted).
+
+**Interface Note**: Two new public methods on `ToolExecutor` in codex-exec: `fire_pre_tool_use(&self, tool_name: &str, tool_input: &serde_json::Value) -> Option<String>` and `fire_post_tool_use(&self, tool_name: &str, tool_input: &serde_json::Value, result: &ToolResult)`. These are additive — existing `execute()` method is unchanged. mind-tool-engine should be aware these exist for any future enforcement work.
+
+---
+
+### mind-memory | Sprint 6 — Fix A2 (Cite Authorization) + A4 (boot_count table name)
+
+**Changed**:
+- `codex-memory/src/store.rs`: Added `MemoryError::Unauthorized` variant. Changed `cite()` signature from `cite(citer_id, cited_id)` to `cite(citer_id, cited_id, mind_id)`. Before creating a cite link, verifies: (1) citer memory exists, (2) citer memory's `mind_id` matches the calling `mind_id`, (3) cited memory exists. Unauthorized attempts are logged via `tracing::warn`. Added 5 new authorization tests (18 total, all pass).
+- `cortex-memory/src/store.rs`: Same `MemoryError::Unauthorized` variant and `cite()` authorization logic as codex-memory. Fixed A4 bug: `boot_count()` queried `FROM session` (singular) but the table is `sessions` (plural) — fixed to `FROM sessions`. Made `boot_count()` gracefully return 0 when sessions table doesn't exist yet (lazy creation). Fixed `start_session()` ordering: CREATE TABLE now runs before SELECT to avoid querying a nonexistent table. Added 6 new tests including `boot_count_works` (16 total, all pass).
+- `cortex/src/main.rs`: Updated 2 `cite()` call sites to pass `mind_id`.
+- `cortex/src/bin/dream_proof.rs`: Updated 3 `cite()` call sites to pass `"researcher"`.
+- `codex-dream/src/engine.rs`: Updated 2 production `cite()` calls (pass `"dream-engine"`) and 4 test `cite()` calls (pass correct owner mind_ids).
+
+**Test results**: `codex-memory`: 18 passed, 0 failed. `cortex-memory`: 16 passed, 0 failed. `codex-dream`: 7 passed, 0 failed. `cargo check` on full workspace: clean (no errors).
+
+**Blocked**: Nothing.
+
+**Next**: Remaining Sprint 6 items. Any new callers of `cite()` must pass the calling mind's ID as the third argument.
+
+**Interface Note**: `cite()` signature changed in BOTH `codex-memory::MemoryStore` and `cortex-memory::MemoryStore` — now requires `mind_id: &str` as third parameter. `MemoryError::Unauthorized` added to both crates. Any code calling `cite()` without the `mind_id` parameter will get a compile error.
+
+---

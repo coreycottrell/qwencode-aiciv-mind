@@ -25,6 +25,14 @@ use codex_roles::Role;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+// ── Optional Memory Integration ──────────────────────────────────────────────
+// When the "memory" feature is enabled, RedTeamProtocol can query
+// cortex-memory for Conflicts edges, surfacing contradictions as
+// additional challenge questions during verification.
+
+#[cfg(feature = "memory")]
+use cortex_memory::{LinkType, MemoryStore};
+
 // ── Compiled Regex Patterns (OnceLock — allocated once, used forever) ────────
 
 fn completion_re() -> &'static Regex {
@@ -274,6 +282,120 @@ impl RedTeamProtocol {
                 .join("\n"),
             questions,
         )
+    }
+
+    /// Check the memory graph for contradictions related to the claim being verified.
+    ///
+    /// When a `MemoryStore` is available (feature = "memory"), this queries for
+    /// `LinkType::Conflicts` edges involving any memory whose title or content
+    /// overlaps with the claim description. Returns contradiction questions to
+    /// add to the challenge.
+    ///
+    /// When no memory store is provided (or the "memory" feature is off),
+    /// this gracefully returns an empty vec.
+    #[cfg(feature = "memory")]
+    pub async fn check_memory_contradictions(
+        &self,
+        store: Option<&MemoryStore>,
+        claim: &CompletionClaim,
+    ) -> Vec<String> {
+        let store = match store {
+            Some(s) => s,
+            None => return Vec::new(),
+        };
+
+        let mut contradiction_questions: Vec<String> = Vec::new();
+
+        // Search memory for content related to the claim
+        let query = cortex_memory::MemoryQuery {
+            text: Some(claim.description.clone()),
+            ..Default::default()
+        };
+
+        let search_results = match store.search(&query).await {
+            Ok(r) => r,
+            Err(_) => return Vec::new(),
+        };
+
+        // For each related memory, check if it has Conflicts edges
+        for result in &search_results {
+            let conflicts = match store
+                .get_edges_by_type(&result.memory.id, LinkType::Conflicts)
+                .await
+            {
+                Ok(edges) => edges,
+                Err(_) => continue,
+            };
+
+            for edge in &conflicts {
+                // Load the contradicting memory
+                let other_id = if edge.source_id == result.memory.id {
+                    &edge.target_id
+                } else {
+                    &edge.source_id
+                };
+
+                if let Ok(other) = store.get(other_id).await {
+                    contradiction_questions.push(format!(
+                        "MEMORY CONTRADICTION: \"{}\" conflicts with \"{}\". \
+                         Content: \"{}\". How does your claim account for this?",
+                        result.memory.title, other.title, other.content
+                    ));
+                }
+            }
+        }
+
+        contradiction_questions
+    }
+
+    /// Non-memory fallback: always returns empty vec.
+    #[cfg(not(feature = "memory"))]
+    pub fn check_memory_contradictions_sync(&self) -> Vec<String> {
+        Vec::new()
+    }
+
+    /// Verify a completion claim with optional memory contradiction checking.
+    ///
+    /// This is the memory-aware variant of `verify()`. When a `MemoryStore` is
+    /// provided and the "memory" feature is enabled, any contradictions found
+    /// are folded into the verdict as additional challenge questions.
+    #[cfg(feature = "memory")]
+    pub async fn verify_with_memory(
+        &self,
+        claim: &CompletionClaim,
+        store: Option<&MemoryStore>,
+    ) -> RedTeamVerdict {
+        // Run structural verification first (fast path unchanged)
+        let base_verdict = self.verify(claim);
+
+        // Query memory for contradictions
+        let contradictions = self.check_memory_contradictions(store, claim).await;
+
+        if contradictions.is_empty() {
+            return base_verdict;
+        }
+
+        // If structural check already challenged, merge contradiction questions
+        match base_verdict {
+            RedTeamVerdict::Challenged { mut questions } => {
+                questions.extend(contradictions);
+                RedTeamVerdict::Challenged { questions }
+            }
+            RedTeamVerdict::Approved { evidence_quality, notes } => {
+                // Memory contradictions override approval — downgrade to Challenged
+                let mut questions = contradictions;
+                questions.push(format!(
+                    "Evidence quality was {:.1}% ({}) but memory contradictions were found. \
+                     Resolve contradictions before approval.",
+                    evidence_quality * 100.0, notes
+                ));
+                RedTeamVerdict::Challenged { questions }
+            }
+            blocked @ RedTeamVerdict::Blocked { .. } => {
+                // Already blocked — contradictions don't make it worse
+                blocked
+            }
+        }
     }
 }
 
@@ -535,8 +657,16 @@ impl Challenger {
         self
     }
 
-    /// Disable the Challenger (kill switch).
-    pub fn disable(&mut self) {
+    /// Disable the Challenger (e.g., during boot).
+    ///
+    /// Restricted to crate-internal use only. External consumers cannot
+    /// disable the Challenger -- that's the whole point of an adversary.
+    /// Every call is logged at WARN level so the state change is visible.
+    pub(crate) fn disable(&mut self) {
+        tracing::warn!(
+            role = ?self.role,
+            "Challenger DISABLED — adversarial verification is now OFF"
+        );
         self.enabled = false;
     }
 
@@ -1821,5 +1951,204 @@ mod tests {
         calls_9.push(tc("bash", 9));
         let _ = c.check(&calls_9, None, 9);
         assert!(!c.should_kill_stall(), "Productive tool should reset kill counter");
+    }
+
+    // -- A1: disable() hardening --
+
+    #[test]
+    fn disable_is_pub_crate_and_logs() {
+        // Verify that disable() is callable from within the crate (we are in crate tests)
+        // and that it actually disables the challenger.
+        let mut c = Challenger::new(Role::Agent);
+        assert!(c.enabled); // starts enabled
+
+        c.disable();
+        assert!(!c.enabled); // now disabled
+
+        // Verify disabled challenger produces no warnings
+        let calls = vec![tc("read", 1)];
+        let warnings = c.check(&calls, Some("Done!"), 1);
+        assert!(warnings.is_empty(), "Disabled challenger should produce no warnings");
+
+        // Re-enable should work
+        c.enable();
+        assert!(c.enabled);
+        let warnings2 = c.check(&calls, Some("Done!"), 1);
+        assert!(!warnings2.is_empty(), "Re-enabled challenger should produce warnings");
+    }
+
+    #[test]
+    fn enable_remains_public() {
+        // enable() should always be callable — re-enabling is safe
+        let mut c = Challenger::new(Role::Agent);
+        c.disable();
+        c.enable();
+        assert!(c.enabled);
+    }
+}
+
+// ── Memory Integration Tests (feature-gated) ────────────────────────────────
+//
+// These tests only compile and run when `cargo test -p codex-redteam --features memory`
+
+#[cfg(test)]
+#[cfg(feature = "memory")]
+mod memory_tests {
+    use super::*;
+
+    async fn test_store() -> cortex_memory::MemoryStore {
+        cortex_memory::MemoryStore::new(":memory:").await.unwrap()
+    }
+
+    fn test_memory(title: &str, content: &str) -> cortex_memory::NewMemory {
+        cortex_memory::NewMemory {
+            mind_id: "cortex-primary".into(),
+            role: "primary".into(),
+            vertical: Some("testing".into()),
+            category: cortex_memory::MemoryCategory::Learning,
+            title: title.into(),
+            content: content.into(),
+            evidence: vec!["test-evidence".into()],
+            tier: cortex_memory::MemoryTier::Working,
+            session_id: Some("sess-test".into()),
+            task_id: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn check_memory_contradictions_finds_conflicts() {
+        let store = test_store().await;
+
+        // Create two memories that contradict each other
+        let mem_a = store.store(test_memory(
+            "Feature X uses SQLite",
+            "Feature X stores data in SQLite for fast local access."
+        )).await.unwrap();
+
+        let mem_b = store.store(test_memory(
+            "Feature X uses Postgres",
+            "Feature X requires Postgres for production reliability."
+        )).await.unwrap();
+
+        // Flag the conflict
+        store.flag_conflict(&mem_a, &mem_b).await.unwrap();
+
+        // Now verify a claim about Feature X
+        let rt = RedTeamProtocol::new();
+        let claim = CompletionClaim {
+            task_id: "test-mem-1".into(),
+            mind_id: "coder-1".into(),
+            description: "Feature X uses SQLite".into(),
+            result_summary: "Implemented Feature X with SQLite storage".into(),
+            evidence: vec![Evidence {
+                evidence_type: EvidenceType::TestResult,
+                content: "Tests pass".into(),
+                freshness: Freshness::Current,
+            }],
+            claimed_at: Utc::now(),
+        };
+
+        let contradictions = rt
+            .check_memory_contradictions(Some(&store), &claim)
+            .await;
+
+        assert!(!contradictions.is_empty(),
+            "Should find contradictions when Conflicts edges exist");
+        assert!(contradictions[0].contains("MEMORY CONTRADICTION"),
+            "Contradiction message should be clearly labeled");
+    }
+
+    #[tokio::test]
+    async fn check_memory_contradictions_empty_when_no_conflicts() {
+        let store = test_store().await;
+
+        // Create a memory with no conflicts
+        store.store(test_memory(
+            "Module Y is stable",
+            "Module Y has been stable for 5 sessions."
+        )).await.unwrap();
+
+        let rt = RedTeamProtocol::new();
+        let claim = CompletionClaim {
+            task_id: "test-mem-2".into(),
+            mind_id: "coder-1".into(),
+            description: "Module Y is stable".into(),
+            result_summary: "Verified Module Y stability".into(),
+            evidence: vec![Evidence {
+                evidence_type: EvidenceType::TestResult,
+                content: "Tests pass".into(),
+                freshness: Freshness::Current,
+            }],
+            claimed_at: Utc::now(),
+        };
+
+        let contradictions = rt
+            .check_memory_contradictions(Some(&store), &claim)
+            .await;
+
+        assert!(contradictions.is_empty(),
+            "Should find no contradictions when no Conflicts edges exist");
+    }
+
+    #[tokio::test]
+    async fn check_memory_contradictions_none_store_returns_empty() {
+        let rt = RedTeamProtocol::new();
+        let claim = CompletionClaim {
+            task_id: "test-mem-3".into(),
+            mind_id: "coder-1".into(),
+            description: "Anything".into(),
+            result_summary: "Done".into(),
+            evidence: vec![],
+            claimed_at: Utc::now(),
+        };
+
+        let contradictions = rt
+            .check_memory_contradictions(None, &claim)
+            .await;
+
+        assert!(contradictions.is_empty(),
+            "Should gracefully return empty when no store is provided");
+    }
+
+    #[tokio::test]
+    async fn verify_with_memory_downgrades_approval_on_contradiction() {
+        let store = test_store().await;
+
+        // Create contradicting memories
+        let mem_a = store.store(test_memory(
+            "Config uses YAML",
+            "The config system uses YAML format exclusively."
+        )).await.unwrap();
+
+        let mem_b = store.store(test_memory(
+            "Config uses TOML",
+            "The config system was migrated to TOML format."
+        )).await.unwrap();
+
+        store.flag_conflict(&mem_a, &mem_b).await.unwrap();
+
+        let rt = RedTeamProtocol::new();
+        let claim = CompletionClaim {
+            task_id: "test-mem-4".into(),
+            mind_id: "coder-1".into(),
+            description: "Config uses YAML".into(),
+            result_summary: "Config system working with YAML".into(),
+            evidence: vec![Evidence {
+                evidence_type: EvidenceType::TestResult,
+                content: "All config tests pass".into(),
+                freshness: Freshness::Current,
+            }],
+            claimed_at: Utc::now(),
+        };
+
+        // Without memory: should be Approved (has current evidence)
+        let base = rt.verify(&claim);
+        assert!(matches!(base, RedTeamVerdict::Approved { .. }),
+            "Base verdict should be Approved");
+
+        // With memory: should be downgraded to Challenged due to contradiction
+        let verdict = rt.verify_with_memory(&claim, Some(&store)).await;
+        assert!(matches!(verdict, RedTeamVerdict::Challenged { .. }),
+            "Memory contradictions should downgrade Approved to Challenged");
     }
 }

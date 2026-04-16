@@ -290,6 +290,55 @@ impl ToolExecutor {
     pub fn registry(&self) -> &ToolRegistry {
         &self.registry
     }
+
+    /// Fire PreToolUse hook for a tool call (used by ThinkLoop for builtin/intercepted tools).
+    ///
+    /// Returns `Some(reason)` if any hook blocks the call, `None` if allowed.
+    /// If no hook dispatcher is configured, always returns `None` (allowed).
+    pub async fn fire_pre_tool_use(
+        &self,
+        tool_name: &str,
+        tool_input: &serde_json::Value,
+    ) -> Option<String> {
+        if let Some(ref hooks) = self.hooks {
+            let event = aiciv_hooks::HookEvent::PreToolUse {
+                session_id: String::new(),
+                tool_name: tool_name.to_string(),
+                tool_input: tool_input.clone(),
+            };
+            let decision = hooks.fire_blocking(&event).await;
+            if let aiciv_hooks::Decision::Block { reason } = decision {
+                info!(tool = %tool_name, %reason, "Builtin/intercepted tool blocked by hook");
+                return Some(reason);
+            }
+        }
+        None
+    }
+
+    /// Fire PostToolUse hook for a tool call (used by ThinkLoop for builtin/intercepted tools).
+    ///
+    /// Non-blocking fire — collects responses for future use but does not block.
+    pub async fn fire_post_tool_use(
+        &self,
+        tool_name: &str,
+        tool_input: &serde_json::Value,
+        result: &ToolResult,
+    ) {
+        if let Some(ref hooks) = self.hooks {
+            let output_json = serde_json::json!({
+                "success": result.success,
+                "output": result.output,
+                "error": result.error,
+            });
+            let event = aiciv_hooks::HookEvent::PostToolUse {
+                session_id: String::new(),
+                tool_name: tool_name.to_string(),
+                tool_input: tool_input.clone(),
+                tool_output: output_json,
+            };
+            let _responses = hooks.fire(&event).await;
+        }
+    }
 }
 
 #[cfg(test)]

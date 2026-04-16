@@ -46,3 +46,31 @@ pub trait LlmProvider: Send + Sync {
         Ok(content)
     }
 }
+
+/// Dummy LLM provider for testing — always returns an empty response.
+#[cfg(test)]
+pub struct DummyProvider;
+
+#[cfg(test)]
+#[async_trait]
+impl LlmProvider for DummyProvider {
+    async fn chat(
+        &self,
+        _messages: &[ChatMessage],
+        _tools: Option<&[ToolSchema]>,
+    ) -> Result<ChatResponse, LlmError> {
+        Ok(ChatResponse {
+            id: Some("dummy".into()),
+            choices: vec![crate::ollama::Choice {
+                index: 0,
+                message: ChatMessage::assistant("dummy response"),
+                finish_reason: Some("stop".into()),
+            }],
+            usage: None,
+        })
+    }
+
+    fn model_name(&self) -> &str {
+        "dummy-test-model"
+    }
+}

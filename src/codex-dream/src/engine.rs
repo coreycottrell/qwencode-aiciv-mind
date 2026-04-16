@@ -284,12 +284,12 @@ impl<'a> DreamEngine<'a> {
                     })
                     .await?;
 
-                // Cite the source memories
-                self.store.cite(&pattern_id, &result.memory.id).await?;
+                // Cite the source memories (dream-engine owns the pattern memory)
+                self.store.cite(&pattern_id, &result.memory.id, "dream-engine").await?;
                 for eid in &evidence {
                     // Only cite if the evidence ID looks like a memory ID (not arbitrary text)
                     if eid.contains('-') && eid.len() > 30 {
-                        let _ = self.store.cite(&pattern_id, eid).await;
+                        let _ = self.store.cite(&pattern_id, eid, "dream-engine").await;
                     }
                 }
 
@@ -491,11 +491,11 @@ mod tests {
             .unwrap();
 
         // Build a cluster around the deep memory: 3+ links, 3+ citations (depth >= 0.3)
-        store.cite(&related1, &deep).await.unwrap(); // deep depth → 0.1
-        store.cite(&related2, &deep).await.unwrap(); // deep depth → 0.2
-        store.cite(&related1, &related2).await.unwrap(); // related2 depth → 0.1
+        store.cite(&related1, &deep, "primary").await.unwrap(); // deep depth → 0.1
+        store.cite(&related2, &deep, "primary").await.unwrap(); // deep depth → 0.2
+        store.cite(&related1, &related2, "primary").await.unwrap(); // related2 depth → 0.1
         // Third citation to push deep to 0.3 (synthesis threshold)
-        store.cite(&_shallow1, &deep).await.unwrap(); // deep depth → 0.3
+        store.cite(&_shallow1, &deep, "agent-1").await.unwrap(); // deep depth → 0.3
         store
             .link(&related2, &deep, LinkType::BuildsOn, 0.9)
             .await

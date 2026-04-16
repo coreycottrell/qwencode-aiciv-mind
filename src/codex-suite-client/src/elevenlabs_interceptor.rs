@@ -124,17 +124,17 @@ impl ElevenLabsInterceptor {
 
         let output_str = output_path.to_string_lossy().to_string();
 
+        // SECURITY: API key is passed via env var, NOT as a curl argument —
+        // prevents exposure via `ps aux` process argument lists.
         let result = tokio::time::timeout(
             std::time::Duration::from_secs(180),
-            Command::new("curl")
-                .arg("-s")
-                .arg("-X").arg("POST")
-                .arg(&url)
-                .arg("-H").arg(format!("xi-api-key: {api_key}"))
-                .arg("-H").arg("Content-Type: application/json")
-                .arg("-d").arg(body.to_string())
-                .arg("-o").arg(&output_str)
-                .arg("-w").arg("%{http_code}")
+            Command::new("sh")
+                .arg("-c")
+                .arg("curl -s -X POST \"$ELEVENLABS_URL\" -H \"xi-api-key: $XI_API_KEY\" -H 'Content-Type: application/json' -d \"$ELEVENLABS_BODY\" -o \"$ELEVENLABS_OUTPUT\" -w '%{http_code}'")
+                .env("XI_API_KEY", api_key)
+                .env("ELEVENLABS_URL", &url)
+                .env("ELEVENLABS_BODY", body.to_string())
+                .env("ELEVENLABS_OUTPUT", &output_str)
                 .output(),
         )
         .await

@@ -11,7 +11,7 @@
 use chrono::{DateTime, Utc};
 use sqlx::sqlite::SqliteRow;
 use sqlx::{Row, SqlitePool};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 use uuid::Uuid;
 
 use crate::types::*;
@@ -25,6 +25,8 @@ pub enum MemoryError {
     NotFound(String),
     #[error("invalid data: {0}")]
     InvalidData(String),
+    #[error("unauthorized: {0}")]
+    Unauthorized(String),
 }
 
 /// SQLite-backed memory graph.
@@ -264,7 +266,40 @@ impl MemoryStore {
     }
 
     /// Cite a memory: creates a Cites edge, increments citation_count, boosts depth_score.
-    pub async fn cite(&self, citer_id: &str, cited_id: &str) -> Result<(), MemoryError> {
+    ///
+    /// Authorization: `mind_id` must match the `mind_id` of the citer memory.
+    /// A mind can only cite FROM its own memories. The cited memory can belong to any mind.
+    pub async fn cite(&self, citer_id: &str, cited_id: &str, mind_id: &str) -> Result<(), MemoryError> {
+        // Verify the citer memory exists and belongs to the calling mind
+        let citer_row = sqlx::query("SELECT mind_id FROM memories WHERE id = ?1")
+            .bind(citer_id)
+            .fetch_optional(&self.pool)
+            .await?
+            .ok_or_else(|| MemoryError::NotFound(format!("citer memory not found: {citer_id}")))?;
+
+        let citer_mind: String = citer_row
+            .try_get("mind_id")
+            .map_err(|e| MemoryError::InvalidData(e.to_string()))?;
+
+        if citer_mind != mind_id {
+            warn!(
+                mind_id = %mind_id,
+                citer_id = %citer_id,
+                citer_owner = %citer_mind,
+                "Unauthorized cite attempt: mind does not own citer memory"
+            );
+            return Err(MemoryError::Unauthorized(format!(
+                "mind '{mind_id}' cannot cite from memory '{citer_id}' owned by '{citer_mind}'"
+            )));
+        }
+
+        // Verify the cited memory exists
+        let _cited_exists = sqlx::query("SELECT id FROM memories WHERE id = ?1")
+            .bind(cited_id)
+            .fetch_optional(&self.pool)
+            .await?
+            .ok_or_else(|| MemoryError::NotFound(format!("cited memory not found: {cited_id}")))?;
+
         self.edge(citer_id, cited_id, LinkType::Cites, 1.0).await?;
 
         sqlx::query(
@@ -279,7 +314,7 @@ impl MemoryStore {
         .execute(&self.pool)
         .await?;
 
-        debug!("Cited {cited_id} from {citer_id}");
+        debug!("Cited {cited_id} from {citer_id} (mind: {mind_id})");
         Ok(())
     }
 
@@ -552,11 +587,6 @@ impl MemoryStore {
         let id = Uuid::new_v4().to_string();
         let now = Utc::now().to_rfc3339();
 
-        let row = sqlx::query("SELECT COALESCE(MAX(boot_count), 0) as bc FROM sessions")
-            .fetch_optional(&self.pool)
-            .await?;
-        let prev_boots: i64 = row.and_then(|r| r.try_get("bc").ok()).unwrap_or(0);
-
         // Create sessions table if not exists (not in 001_graph.sql)
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS sessions (
@@ -572,6 +602,11 @@ impl MemoryStore {
         )
         .execute(&self.pool)
         .await?;
+
+        let row = sqlx::query("SELECT COALESCE(MAX(boot_count), 0) as bc FROM sessions")
+            .fetch_optional(&self.pool)
+            .await?;
+        let prev_boots: i64 = row.and_then(|r| r.try_get("bc").ok()).unwrap_or(0);
 
         sqlx::query(
             "INSERT INTO sessions (id, status, boot_count, started_at, notes) \
@@ -645,12 +680,22 @@ impl MemoryStore {
     }
 
     /// Get total boot count.
+    /// Returns 0 if the sessions table does not yet exist (lazy creation in start_session).
     pub async fn boot_count(&self) -> Result<i64, MemoryError> {
-        let row = sqlx::query("SELECT COALESCE(MAX(boot_count), 0) as bc FROM session")
+        let row = sqlx::query("SELECT COALESCE(MAX(boot_count), 0) as bc FROM sessions")
             .fetch_optional(&self.pool)
-            .await?;
-        let bc: i64 = row.and_then(|r| r.try_get("bc").ok()).unwrap_or(0);
-        Ok(bc)
+            .await;
+        match row {
+            Ok(Some(r)) => {
+                let bc: i64 = r.try_get("bc").unwrap_or(0);
+                Ok(bc)
+            }
+            Ok(None) => Ok(0),
+            Err(_) => {
+                // Table may not exist yet (created lazily in start_session)
+                Ok(0)
+            }
+        }
     }
 }
 
@@ -813,7 +858,7 @@ mod tests {
             .await
             .unwrap();
 
-        store.cite(&id2, &id1).await.unwrap();
+        store.cite(&id2, &id1, "cortex-primary").await.unwrap();
         let mem = store.get(&id1).await.unwrap();
 
         assert_eq!(mem.citation_count, 1);
@@ -828,7 +873,7 @@ mod tests {
             })
             .await
             .unwrap();
-        store.cite(&id3, &id1).await.unwrap();
+        store.cite(&id3, &id1, "cortex-primary").await.unwrap();
         let mem = store.get(&id1).await.unwrap();
 
         assert_eq!(mem.citation_count, 2);
@@ -950,7 +995,7 @@ mod tests {
             .await
             .unwrap();
 
-        store.cite(&b, &a).await.unwrap();
+        store.cite(&b, &a, "cortex-primary").await.unwrap();
         store.build_on(&b, &a).await.unwrap();
 
         let counts = store.edge_counts().await.unwrap();
@@ -969,5 +1014,119 @@ mod tests {
         let mem = store.get(&id).await.unwrap();
         assert_eq!(mem.title, "Updated Title");
         assert_eq!(mem.content, "New content here.");
+    }
+
+    #[tokio::test]
+    async fn cite_authorized_same_mind() {
+        let store = test_store().await;
+        let id1 = store.store(test_memory()).await.unwrap();
+        let id2 = store
+            .store(NewMemory {
+                title: "Citer from same mind".into(),
+                content: "Same mind citing.".into(),
+                ..test_memory()
+            })
+            .await
+            .unwrap();
+
+        // Should succeed: both memories belong to "cortex-primary"
+        let result = store.cite(&id2, &id1, "cortex-primary").await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn cite_unauthorized_wrong_mind() {
+        let store = test_store().await;
+        let id1 = store.store(test_memory()).await.unwrap(); // owned by "cortex-primary"
+        let id2 = store
+            .store(NewMemory {
+                title: "Another memory".into(),
+                content: "Also owned by cortex-primary.".into(),
+                ..test_memory()
+            })
+            .await
+            .unwrap();
+
+        // Should fail: "evil-mind" does not own the citer memory
+        let result = store.cite(&id2, &id1, "evil-mind").await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            matches!(err, MemoryError::Unauthorized(_)),
+            "Expected Unauthorized error, got: {err:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn cite_cross_mind_allowed_when_owned() {
+        let store = test_store().await;
+        // Memory owned by "mind-alpha"
+        let alpha_mem = store
+            .store(NewMemory {
+                mind_id: "mind-alpha".into(),
+                title: "Alpha's insight".into(),
+                content: "Something worth citing.".into(),
+                ..test_memory()
+            })
+            .await
+            .unwrap();
+        // Memory owned by "mind-beta"
+        let beta_mem = store
+            .store(NewMemory {
+                mind_id: "mind-beta".into(),
+                title: "Beta's work".into(),
+                content: "Beta cites alpha.".into(),
+                ..test_memory()
+            })
+            .await
+            .unwrap();
+
+        // Should succeed: mind-beta owns the citer memory, citing alpha's memory
+        let result = store.cite(&beta_mem, &alpha_mem, "mind-beta").await;
+        assert!(result.is_ok());
+
+        // Verify the citation boosted alpha's memory
+        let cited = store.get(&alpha_mem).await.unwrap();
+        assert_eq!(cited.citation_count, 1);
+    }
+
+    #[tokio::test]
+    async fn cite_nonexistent_citer_fails() {
+        let store = test_store().await;
+        let id1 = store.store(test_memory()).await.unwrap();
+
+        let result = store.cite("nonexistent-id", &id1, "cortex-primary").await;
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), MemoryError::NotFound(_)));
+    }
+
+    #[tokio::test]
+    async fn cite_nonexistent_cited_fails() {
+        let store = test_store().await;
+        let id1 = store.store(test_memory()).await.unwrap();
+
+        let result = store.cite(&id1, "nonexistent-id", "cortex-primary").await;
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), MemoryError::NotFound(_)));
+    }
+
+    #[tokio::test]
+    async fn boot_count_works() {
+        let store = test_store().await;
+
+        // Before any sessions, boot count should be 0
+        assert_eq!(store.boot_count().await.unwrap(), 0);
+
+        // Start and end a session
+        let s1 = store.start_session(Some("first boot")).await.unwrap();
+        store.end_session(&s1, "{}").await.unwrap();
+
+        assert_eq!(store.boot_count().await.unwrap(), 1);
+
+        // Start and end another session
+        let s2 = store.start_session(None).await.unwrap();
+        store.end_session(&s2, "{}").await.unwrap();
+
+        assert_eq!(store.boot_count().await.unwrap(), 2);
     }
 }

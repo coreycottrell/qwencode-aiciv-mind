@@ -24,3 +24,5 @@ reqwest = { version = "0.12", features = ["json", "stream"] }
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 tempfile = "3"
+aiciv-hooks = { workspace = true }
+anyhow = { workspace = true }

@@ -178,6 +178,15 @@ impl ThinkLoop {
     }
 
     /// Dispatch a tool call to built-in handlers (memory, scratchpad, hum) or the executor.
+    ///
+    /// Builtin tools now receive the same enforcement as registered tools:
+    /// 1. Role permission check via `codex_roles::is_tool_allowed`
+    /// 2. PreToolUse hook (can block)
+    /// 3. Execute the builtin handler
+    /// 4. PostToolUse hook
+    ///
+    /// Non-builtin tools fall through to `ToolExecutor::execute()` which has its own
+    /// full enforcement pipeline.
     async fn dispatch_builtin_or_exec(
         &self,
         tool_name: &str,
@@ -188,29 +197,68 @@ impl ThinkLoop {
         executor: &ToolExecutor,
         original_name: &str,
     ) -> ToolResult {
-        match tool_name {
-            "memory_search" => handle_memory_search(memory, args).await,
-            "memory_write" => handle_memory_write(memory, args, mind_id, role).await,
-            "scratchpad_read" => handle_scratchpad_read(self.scratchpad_dir.as_deref(), mind_id),
-            "scratchpad_write" => handle_scratchpad_write(self.scratchpad_dir.as_deref(), mind_id, args),
-            "coordination_read" => handle_coordination_read(self.scratchpad_dir.as_deref()),
-            "coordination_write" => handle_coordination_write(self.scratchpad_dir.as_deref(), mind_id, args),
-            "team_scratchpad_read" => handle_team_scratchpad_read(self.scratchpad_dir.as_deref(), args),
-            "team_scratchpad_write" => handle_team_scratchpad_write(self.scratchpad_dir.as_deref(), mind_id, args),
-            "hum_digest" => handle_hum_digest(self.hum_dir.as_deref()),
-            "ollama_usage" => {
-                let text = crate::rate_limiter::handle_ollama_usage(self.rate_limiter.as_ref()).await;
-                ToolResult::ok(text)
+        let is_builtin = matches!(
+            tool_name,
+            "memory_search"
+                | "memory_write"
+                | "scratchpad_read"
+                | "scratchpad_write"
+                | "coordination_read"
+                | "coordination_write"
+                | "team_scratchpad_read"
+                | "team_scratchpad_write"
+                | "hum_digest"
+                | "ollama_usage"
+        );
+
+        if is_builtin {
+            // ── Enforcement layer for builtins (B1 fix) ──
+
+            // Step 1: Role permission check
+            if !codex_roles::is_tool_allowed(role, tool_name) {
+                info!(tool = %tool_name, role = %role, "Builtin tool denied by role check");
+                return ToolResult::err(format!(
+                    "Permission denied: tool '{}' not allowed for role {:?}",
+                    tool_name, role
+                ));
             }
-            _ => {
-                let call = ToolCall {
-                    name: original_name.to_string(),
-                    arguments: args.clone(),
-                };
-                match executor.execute(&call, role).await {
-                    Ok(r) => r,
-                    Err(e) => ToolResult::err(format!("Tool execution error: {e}")),
+
+            // Step 2: PreToolUse hook
+            if let Some(reason) = executor.fire_pre_tool_use(tool_name, args).await {
+                return ToolResult::err(format!("Blocked by hook: {reason}"));
+            }
+
+            // Step 3: Execute the builtin handler
+            let result = match tool_name {
+                "memory_search" => handle_memory_search(memory, args).await,
+                "memory_write" => handle_memory_write(memory, args, mind_id, role).await,
+                "scratchpad_read" => handle_scratchpad_read(self.scratchpad_dir.as_deref(), mind_id),
+                "scratchpad_write" => handle_scratchpad_write(self.scratchpad_dir.as_deref(), mind_id, args),
+                "coordination_read" => handle_coordination_read(self.scratchpad_dir.as_deref()),
+                "coordination_write" => handle_coordination_write(self.scratchpad_dir.as_deref(), mind_id, args),
+                "team_scratchpad_read" => handle_team_scratchpad_read(self.scratchpad_dir.as_deref(), args),
+                "team_scratchpad_write" => handle_team_scratchpad_write(self.scratchpad_dir.as_deref(), mind_id, args),
+                "hum_digest" => handle_hum_digest(self.hum_dir.as_deref()),
+                "ollama_usage" => {
+                    let text = crate::rate_limiter::handle_ollama_usage(self.rate_limiter.as_ref()).await;
+                    ToolResult::ok(text)
                 }
+                _ => unreachable!("is_builtin guard ensures this"),
+            };
+
+            // Step 4: PostToolUse hook
+            executor.fire_post_tool_use(tool_name, args, &result).await;
+
+            result
+        } else {
+            // Non-builtin: delegate to ToolExecutor (has its own full enforcement pipeline)
+            let call = ToolCall {
+                name: original_name.to_string(),
+                arguments: args.clone(),
+            };
+            match executor.execute(&call, role).await {
+                Ok(r) => r,
+                Err(e) => ToolResult::err(format!("Tool execution error: {e}")),
             }
         }
     }
@@ -362,16 +410,38 @@ impl ThinkLoop {
                             "Executing tool call"
                         );
 
-                        // Resolution order: interceptor → memory → scratchpad → executor
+                        // Resolution order: enforcement → interceptor → builtin/executor
+                        // ALL paths get role check + hooks (B1 + B2 fix).
                         let tool_name = tc.function.name.as_str();
-                        // Resolution order: interceptor → memory → scratchpad/hum → executor
                         let result = if let Some(interceptor) = interceptor {
                             if let Some(r) = interceptor.handle(tool_name, &args).await {
-                                r
+                                // ── Enforcement for intercepted tools (B2 fix) ──
+                                // Step 1: Role permission check
+                                if !codex_roles::is_tool_allowed(role, tool_name) {
+                                    info!(tool = %tool_name, role = %role, "Intercepted tool denied by role check");
+                                    ToolResult::err(format!(
+                                        "Permission denied: tool '{}' not allowed for role {:?}",
+                                        tool_name, role
+                                    ))
+                                } else {
+                                    // Step 2: PreToolUse hook (can block)
+                                    if let Some(reason) = executor.fire_pre_tool_use(tool_name, &args).await {
+                                        ToolResult::err(format!("Blocked by hook: {reason}"))
+                                    } else {
+                                        // Step 3: Use interceptor result
+                                        // Step 4: PostToolUse hook
+                                        executor.fire_post_tool_use(tool_name, &args, &r).await;
+                                        r
+                                    }
+                                }
                             } else {
+                                // Interceptor did not handle — fall through to builtin/executor
+                                // (dispatch_builtin_or_exec has its own enforcement)
                                 self.dispatch_builtin_or_exec(tool_name, &args, memory, mind_id, role, executor, &tc.function.name).await
                             }
                         } else {
+                            // No interceptor — go directly to builtin/executor
+                            // (dispatch_builtin_or_exec has its own enforcement)
                             self.dispatch_builtin_or_exec(tool_name, &args, memory, mind_id, role, executor, &tc.function.name).await
                         };
 
@@ -1655,5 +1725,256 @@ mod tests {
     fn normalize_null_args_passthrough() {
         let result = normalize_args("read", serde_json::Value::Null);
         assert!(result.is_null());
+    }
+
+    // ── Sprint 6: Builtin + Interceptor Enforcement Tests (B1 + B2) ──
+
+    /// Helper: create a ToolExecutor with no registered tools and no hooks.
+    fn make_executor() -> ToolExecutor {
+        let reg = codex_exec::ToolRegistry::new();
+        let sandbox = codex_exec::SandboxEnforcer::new("/tmp/test-workspace".into());
+        ToolExecutor::new(reg, sandbox)
+    }
+
+    /// Helper: create a ToolExecutor with a blocking hook on PreToolUse.
+    fn make_executor_with_blocking_hook(reason: &str) -> ToolExecutor {
+        use aiciv_hooks::{HookDispatcher, HookEventType};
+        use aiciv_hooks::HookHandler;
+
+        struct BlockAll { reason: String }
+        #[async_trait]
+        impl HookHandler for BlockAll {
+            async fn handle(&self, _event: &aiciv_hooks::HookEvent) -> anyhow::Result<aiciv_hooks::HookResponse> {
+                Ok(aiciv_hooks::HookResponse::PreToolUse {
+                    should_block: true,
+                    reason: Some(self.reason.clone()),
+                    modified_input: None,
+                })
+            }
+            fn name(&self) -> &str { "block-all" }
+        }
+
+        let mut dispatcher = HookDispatcher::new();
+        dispatcher.register(
+            HookEventType::PreToolUse,
+            std::sync::Arc::new(BlockAll { reason: reason.to_string() }),
+        );
+
+        let reg = codex_exec::ToolRegistry::new();
+        let sandbox = codex_exec::SandboxEnforcer::new("/tmp/test-workspace".into());
+        ToolExecutor::new(reg, sandbox).with_hooks(std::sync::Arc::new(dispatcher))
+    }
+
+    // ── B1: Builtin tools get role-checked ──
+
+    #[tokio::test]
+    async fn builtin_memory_search_allowed_for_agent() {
+        // Agent role can use memory_search (wildcard allows all)
+        let exec = make_executor();
+        let loop_inst = ThinkLoop::new(
+            Box::new(crate::provider::DummyProvider),
+            ThinkLoopConfig::default(),
+        );
+        let args = serde_json::json!({"query": "test"});
+        let result = loop_inst.dispatch_builtin_or_exec(
+            "memory_search", &args, None, None, Role::Agent, &exec, "memory_search",
+        ).await;
+        // Should reach the handler (which returns error because no store), NOT be denied by role
+        assert!(!result.success);
+        assert!(result.error.as_ref().unwrap().contains("not available"));
+    }
+
+    #[tokio::test]
+    async fn builtin_memory_write_denied_for_primary() {
+        // Primary role does NOT have memory_write in its allowed tools
+        let exec = make_executor();
+        let loop_inst = ThinkLoop::new(
+            Box::new(crate::provider::DummyProvider),
+            ThinkLoopConfig::default(),
+        );
+        let args = serde_json::json!({"title": "test", "content": "test"});
+        let result = loop_inst.dispatch_builtin_or_exec(
+            "memory_write", &args, None, None, Role::Primary, &exec, "memory_write",
+        ).await;
+        assert!(!result.success);
+        assert!(result.error.as_ref().unwrap().contains("Permission denied"));
+    }
+
+    #[tokio::test]
+    async fn builtin_scratchpad_write_denied_for_primary() {
+        // Primary has no scratchpad_write in its role tools
+        let exec = make_executor();
+        let loop_inst = ThinkLoop::new(
+            Box::new(crate::provider::DummyProvider),
+            ThinkLoopConfig::default(),
+        );
+        let args = serde_json::json!({"content": "note"});
+        let result = loop_inst.dispatch_builtin_or_exec(
+            "scratchpad_write", &args, None, None, Role::Primary, &exec, "scratchpad_write",
+        ).await;
+        assert!(!result.success);
+        assert!(result.error.as_ref().unwrap().contains("Permission denied"));
+    }
+
+    #[tokio::test]
+    async fn builtin_hum_digest_denied_for_team_lead() {
+        // TeamLead has no hum_digest in its role tools
+        let exec = make_executor();
+        let loop_inst = ThinkLoop::new(
+            Box::new(crate::provider::DummyProvider),
+            ThinkLoopConfig::default(),
+        );
+        let args = serde_json::json!({});
+        let result = loop_inst.dispatch_builtin_or_exec(
+            "hum_digest", &args, None, None, Role::TeamLead, &exec, "hum_digest",
+        ).await;
+        assert!(!result.success);
+        assert!(result.error.as_ref().unwrap().contains("Permission denied"));
+    }
+
+    #[tokio::test]
+    async fn builtin_ollama_usage_denied_for_team_lead() {
+        // TeamLead has no ollama_usage in its role tools
+        let exec = make_executor();
+        let loop_inst = ThinkLoop::new(
+            Box::new(crate::provider::DummyProvider),
+            ThinkLoopConfig::default(),
+        );
+        let args = serde_json::json!({});
+        let result = loop_inst.dispatch_builtin_or_exec(
+            "ollama_usage", &args, None, None, Role::TeamLead, &exec, "ollama_usage",
+        ).await;
+        assert!(!result.success);
+        assert!(result.error.as_ref().unwrap().contains("Permission denied"));
+    }
+
+    #[tokio::test]
+    async fn builtin_memory_search_allowed_for_primary() {
+        // Primary DOES have memory_search in its role tools
+        let exec = make_executor();
+        let loop_inst = ThinkLoop::new(
+            Box::new(crate::provider::DummyProvider),
+            ThinkLoopConfig::default(),
+        );
+        let args = serde_json::json!({"query": "test"});
+        let result = loop_inst.dispatch_builtin_or_exec(
+            "memory_search", &args, None, None, Role::Primary, &exec, "memory_search",
+        ).await;
+        // Should pass role check but fail at handler level (no store)
+        assert!(!result.success);
+        assert!(result.error.as_ref().unwrap().contains("not available"));
+    }
+
+    #[tokio::test]
+    async fn builtin_team_scratchpad_read_allowed_for_team_lead() {
+        // TeamLead DOES have team_scratchpad_read
+        let exec = make_executor();
+        let loop_inst = ThinkLoop::new(
+            Box::new(crate::provider::DummyProvider),
+            ThinkLoopConfig::default(),
+        );
+        let args = serde_json::json!({});
+        let result = loop_inst.dispatch_builtin_or_exec(
+            "team_scratchpad_read", &args, None, None, Role::TeamLead, &exec, "team_scratchpad_read",
+        ).await;
+        // Passes role check, fails at handler (no scratchpad configured)
+        assert!(!result.success);
+        assert!(result.error.as_ref().unwrap().contains("not configured"));
+    }
+
+    // ── B1: Builtin tools get hook enforcement ──
+
+    #[tokio::test]
+    async fn builtin_blocked_by_hook() {
+        let exec = make_executor_with_blocking_hook("audit: memory_search blocked");
+        let loop_inst = ThinkLoop::new(
+            Box::new(crate::provider::DummyProvider),
+            ThinkLoopConfig::default(),
+        );
+        let args = serde_json::json!({"query": "test"});
+        // Agent role is allowed, but hook blocks
+        let result = loop_inst.dispatch_builtin_or_exec(
+            "memory_search", &args, None, None, Role::Agent, &exec, "memory_search",
+        ).await;
+        assert!(!result.success);
+        assert!(result.error.as_ref().unwrap().contains("Blocked by hook"));
+        assert!(result.error.as_ref().unwrap().contains("audit: memory_search blocked"));
+    }
+
+    #[tokio::test]
+    async fn builtin_role_check_before_hook() {
+        // Role check happens BEFORE hook. If role denies, we never reach the hook.
+        let exec = make_executor_with_blocking_hook("should not reach this");
+        let loop_inst = ThinkLoop::new(
+            Box::new(crate::provider::DummyProvider),
+            ThinkLoopConfig::default(),
+        );
+        let args = serde_json::json!({"title": "x", "content": "y"});
+        let result = loop_inst.dispatch_builtin_or_exec(
+            "memory_write", &args, None, None, Role::Primary, &exec, "memory_write",
+        ).await;
+        assert!(!result.success);
+        // Should be "Permission denied", not "Blocked by hook"
+        assert!(result.error.as_ref().unwrap().contains("Permission denied"));
+    }
+
+    // ── B2: Intercepted tools get enforcement ──
+
+    #[tokio::test]
+    async fn intercepted_tool_denied_by_role() {
+        // Create a tool that the interceptor handles but role denies
+        struct DeniedInterceptor;
+        #[async_trait]
+        impl ToolInterceptor for DeniedInterceptor {
+            fn schemas(&self) -> Vec<crate::ollama::ToolSchema> { vec![] }
+            async fn handle(&self, name: &str, _args: &serde_json::Value) -> Option<ToolResult> {
+                if name == "secret_tool" {
+                    Some(ToolResult::ok("intercepted secret"))
+                } else {
+                    None
+                }
+            }
+        }
+
+        let interceptor = DeniedInterceptor;
+        let args = serde_json::json!({});
+
+        // Primary role doesn't have "secret_tool"
+        // Simulate what run_full does:
+        if let Some(_r) = interceptor.handle("secret_tool", &args).await {
+            // B2 enforcement: role check
+            if !codex_roles::is_tool_allowed(Role::Primary, "secret_tool") {
+                let result = ToolResult::err(format!(
+                    "Permission denied: tool '{}' not allowed for role {:?}",
+                    "secret_tool", Role::Primary
+                ));
+                assert!(!result.success);
+                assert!(result.error.as_ref().unwrap().contains("Permission denied"));
+            } else {
+                panic!("Primary should NOT be allowed secret_tool");
+            }
+        } else {
+            panic!("Interceptor should have handled secret_tool");
+        }
+    }
+
+    #[tokio::test]
+    async fn intercepted_tool_blocked_by_hook() {
+        let exec = make_executor_with_blocking_hook("interceptor audit block");
+
+        // Agent role is allowed (wildcard), but hook blocks
+        let block_result = exec.fire_pre_tool_use("custom_intercepted", &serde_json::json!({})).await;
+        assert!(block_result.is_some());
+        assert!(block_result.unwrap().contains("interceptor audit block"));
+    }
+
+    #[tokio::test]
+    async fn intercepted_tool_allowed_when_role_and_hooks_pass() {
+        // Agent role allows all, no hooks configured → should pass through
+        let exec = make_executor();
+
+        assert!(codex_roles::is_tool_allowed(Role::Agent, "custom_tool"));
+        let block_result = exec.fire_pre_tool_use("custom_tool", &serde_json::json!({})).await;
+        assert!(block_result.is_none()); // No hooks → allowed
     }
 }

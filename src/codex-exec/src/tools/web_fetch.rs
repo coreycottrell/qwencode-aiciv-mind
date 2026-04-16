@@ -4,6 +4,8 @@
 //! Fallback: Jina Reader (`r.jina.ai/{url}`).
 
 use async_trait::async_trait;
+use std::process::Stdio;
+use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 use tracing::{debug, warn};
 
@@ -29,16 +31,27 @@ impl WebFetchTool {
         let api_key = std::env::var("OLLAMA_API_KEY").ok()?;
         let body = serde_json::json!({ "url": url });
 
+        // Use sh -c wrapper so the API key is passed via environment variable,
+        // not as a command-line argument visible in `ps aux` / /proc/PID/cmdline.
+        // The JSON body is piped via stdin (-d @-) to avoid long arg lists.
+        let mut child = Command::new("sh")
+            .arg("-c")
+            .arg("curl -s -X POST 'https://ollama.com/api/web_fetch' -H \"Authorization: Bearer $OLLAMA_API_KEY\" -H 'Content-Type: application/json' -d @-")
+            .env("OLLAMA_API_KEY", &api_key)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .ok()?;
+
+        if let Some(mut stdin) = child.stdin.take() {
+            let _ = stdin.write_all(body.to_string().as_bytes()).await;
+            // Drop stdin to close the pipe and let curl proceed
+        }
+
         let output = tokio::time::timeout(
             std::time::Duration::from_secs(25),
-            Command::new("curl")
-                .arg("-s")
-                .arg("-X").arg("POST")
-                .arg("https://ollama.com/api/web_fetch")
-                .arg("-H").arg(format!("Authorization: Bearer {api_key}"))
-                .arg("-H").arg("Content-Type: application/json")
-                .arg("-d").arg(body.to_string())
-                .output(),
+            child.wait_with_output(),
         )
         .await
         .ok()?

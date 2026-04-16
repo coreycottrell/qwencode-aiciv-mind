@@ -53,15 +53,16 @@ impl SearchInterceptor {
             "max_results": max_results,
         });
 
+        // SECURITY: API key is passed via env var, NOT as a curl argument —
+        // prevents exposure via `ps aux` process argument lists.
         let output = tokio::time::timeout(
             std::time::Duration::from_secs(20),
-            Command::new("curl")
-                .arg("-s")
-                .arg("-X").arg("POST")
-                .arg("https://ollama.com/api/web_search")
-                .arg("-H").arg(format!("Authorization: Bearer {api_key}"))
-                .arg("-H").arg("Content-Type: application/json")
-                .arg("-d").arg(body.to_string())
+            Command::new("sh")
+                .arg("-c")
+                .arg("curl -s -X POST \"$OLLAMA_SEARCH_URL\" -H \"Authorization: Bearer $OLLAMA_API_KEY\" -H 'Content-Type: application/json' -d \"$OLLAMA_SEARCH_BODY\"")
+                .env("OLLAMA_API_KEY", api_key)
+                .env("OLLAMA_SEARCH_URL", "https://ollama.com/api/web_search")
+                .env("OLLAMA_SEARCH_BODY", body.to_string())
                 .output(),
         )
         .await
@@ -143,15 +144,16 @@ impl SearchInterceptor {
         let api_key = self.api_key.as_ref()?;
         let body = serde_json::json!({ "url": url });
 
+        // SECURITY: API key is passed via env var, NOT as a curl argument —
+        // prevents exposure via `ps aux` process argument lists.
         let output = tokio::time::timeout(
             std::time::Duration::from_secs(25),
-            Command::new("curl")
-                .arg("-s")
-                .arg("-X").arg("POST")
-                .arg("https://ollama.com/api/web_fetch")
-                .arg("-H").arg(format!("Authorization: Bearer {api_key}"))
-                .arg("-H").arg("Content-Type: application/json")
-                .arg("-d").arg(body.to_string())
+            Command::new("sh")
+                .arg("-c")
+                .arg("curl -s -X POST \"$OLLAMA_FETCH_URL\" -H \"Authorization: Bearer $OLLAMA_API_KEY\" -H 'Content-Type: application/json' -d \"$OLLAMA_FETCH_BODY\"")
+                .env("OLLAMA_API_KEY", api_key)
+                .env("OLLAMA_FETCH_URL", "https://ollama.com/api/web_fetch")
+                .env("OLLAMA_FETCH_BODY", body.to_string())
                 .output(),
         )
         .await

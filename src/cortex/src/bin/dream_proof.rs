@@ -125,9 +125,9 @@ async fn main() {
 
     // Create links so the dream engine finds clusters
     use codex_memory::LinkType;
-    let _ = store.cite(&id2, &id1).await;
-    let _ = store.cite(&id3, &id1).await;
-    let _ = store.cite(&id3, &id2).await;
+    let _ = store.cite(&id2, &id1, "researcher").await;
+    let _ = store.cite(&id3, &id1, "researcher").await;
+    let _ = store.cite(&id3, &id2, "researcher").await;
     let _ = store.link(&id2, &id1, LinkType::BuildsOn, 0.8).await;
     let _ = store.link(&id3, &id2, LinkType::Related, 0.7).await;
 

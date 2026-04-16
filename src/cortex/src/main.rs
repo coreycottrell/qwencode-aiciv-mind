@@ -1948,8 +1948,8 @@ async fn demo_mode() {
     info!("Stored pattern: {pattern1}");
 
     // Build the graph: decision cites learning, pattern cites decision
-    mem_store.cite(&decision1, &learning1).await.unwrap();
-    mem_store.cite(&pattern1, &decision1).await.unwrap();
+    mem_store.cite(&decision1, &learning1, &primary_id.0).await.unwrap();
+    mem_store.cite(&pattern1, &decision1, &primary_id.0).await.unwrap();
     info!("Graph links created (decision cites learning, pattern cites decision)");
 
     // Create a builds_on link
