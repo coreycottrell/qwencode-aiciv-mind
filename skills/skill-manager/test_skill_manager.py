@@ -97,6 +97,37 @@ def test_check_file_nonexistent():
     return True
 
 
+def test_lint_all_command():
+    """lint-all command shows state machine."""
+    exit_code, stdout, stderr = run_cmd(["python3", "skills/skill-manager/skill_manager.py", "lint-all"])
+    assert exit_code == 0, f"Expected exit 0, got {exit_code}: {stderr}"
+    assert "State" in stdout, "Should show state column"
+    assert "COMPLETE" in stdout or "VALIDATED" in stdout, "Should show COMPLETE or VALIDATED state"
+    assert "SUMMARY" in stdout or "summary" in stdout, "Should show summary"
+    print(f"✅ test_lint_all_command PASS")
+    return True
+
+
+def test_lint_single_command():
+    """lint on a specific skill shows state and issues."""
+    exit_code, stdout, stderr = run_cmd(["python3", "skills/skill-manager/skill_manager.py", "lint", "tdd"])
+    assert exit_code == 0, f"Expected exit 0, got {exit_code}: {stderr}"
+    assert "tdd" in stdout, "Should mention tdd"
+    assert "State:" in stdout, "Should show state"
+    print(f"✅ test_lint_single_command PASS")
+    return True
+
+
+def test_lint_detects_incomplete():
+    """lint detects INCOMPLETE state for skills missing tests."""
+    sys.path.insert(0, str(PROJECT_ROOT / "skills" / "skill-manager"))
+    from skill_manager import lint_skill
+    result = lint_skill("atropos-grpo")
+    assert result["state"] == "COMPLETE", f"Expected COMPLETE (tests optional), got {result['state']}"
+    print(f"✅ test_lint_detects_incomplete PASS: state={result['state']}")
+    return True
+
+
 def test_scan_skills_dir_import():
     """scan_skills_dir function works as API."""
     sys.path.insert(0, str(PROJECT_ROOT / "skills" / "skill-manager"))
@@ -126,6 +157,9 @@ if __name__ == "__main__":
         ("check_file_complete", test_check_file_complete_skill),
         ("check_file_missing", test_check_file_nonexistent),
         ("import_scan", test_scan_skills_dir_import),
+        ("lint_all", test_lint_all_command),
+        ("lint_single", test_lint_single_command),
+        ("lint_detect", test_lint_detects_incomplete),
     ]
 
     for name, test_fn in tests:

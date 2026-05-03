@@ -276,18 +276,135 @@ def verify_all() -> None:
 
 
 # ───────────────────────────────────────────────────────────────────
+# Skill State Machine + Lint
+# ───────────────────────────────────────────────────────────────────
+
+SKILL_STATES = ["DRAFT", "INCOMPLETE", "COMPLETE", "VALIDATED", "MERGED"]
+REQUIRED_FC_FIELDS = ["WHEN", "WHAT", "PRE", "POST", "FAILURE", "OBSERVABILITY"]
+REQUIRED_SKILL_FIELDS = ["name:", "description:", "version:"]
+
+
+def lint_skill(skill_name: str) -> dict:
+    """Lint a skill and return detailed diagnostics.
+
+    Returns dict with:
+      state: DRAFT | INCOMPLETE | COMPLETE | VALIDATED | MERGED
+      issues: list of (severity, message) tuples
+      files: dict of file → present
+      frontmatter: dict of field → present
+      fc_fields: dict of field → present
+    """
+    skill_path = PROJECT_ROOT / "skills" / skill_name
+    issues = []
+
+    files = {
+        "SKILL.md": (skill_path / "SKILL.md").exists(),
+        "FIRING_CONTRACT.md": (skill_path / "FIRING_CONTRACT.md").exists(),
+        "test_*.py": len(list(skill_path.glob("test_*.py"))) > 0,
+    }
+
+    # Check state
+    state = "DRAFT"
+    if not files["SKILL.md"] and not files["FIRING_CONTRACT.md"]:
+        pass  # state already DRAFT
+    else:
+        missing_files = [k for k, v in files.items() if k != "test_*.py" and not v]
+        if missing_files:
+            state = "INCOMPLETE"
+            issues.append(("ERROR", f"Missing files: {', '.join(missing_files)}"))
+        else:
+            # Check frontmatter
+            frontmatter = {}
+            content = ""
+            try:
+                content = (skill_path / "SKILL.md").read_text()
+                for field in REQUIRED_SKILL_FIELDS:
+                    frontmatter[field] = any(line.strip().startswith(field) for line in content.split("\n"))
+            except Exception:
+                pass
+
+            missing_frontmatter = [k for k, v in frontmatter.items() if not v]
+            if missing_frontmatter:
+                state = "INCOMPLETE"
+                issues.append(("ERROR", f"Missing SKILL.md frontmatter: {', '.join(missing_frontmatter)}"))
+
+            # Check FIRING_CONTRACT fields
+            fc_fields = {}
+            try:
+                fc_content = (skill_path / "FIRING_CONTRACT.md").read_text()
+                for field in REQUIRED_FC_FIELDS:
+                    fc_fields[field] = f"## {field}" in fc_content
+            except Exception:
+                pass
+
+            missing_fc = [k for k, v in fc_fields.items() if not v]
+            if missing_fc:
+                state = "INCOMPLETE"
+                issues.append(("ERROR", f"Missing FIRING_CONTRACT fields: {', '.join(missing_fc)}"))
+
+            # Determine final state (if not INCOMPLETE)
+            if state != "INCOMPLETE":
+                import re
+                if re.search(r"VALIDATOR.*PASS|MERGE|merged", content, re.IGNORECASE):
+                    state = "VALIDATED"
+                else:
+                    state = "COMPLETE"
+
+                if re.search(r"Proof|Works|ACG", content):
+                    issues.append(("INFO", "Validator noted in metadata"))
+
+    return {
+        "name": skill_name,
+        "state": state,
+        "issues": issues,
+        "files": files,
+    }
+
+
+def lint_all() -> None:
+    """Lint all skills and show state machine + issues."""
+    skills = scan_skills_dir()
+    print(f"{'Skill':<30} {'State':<12} {'Issues'}")
+    print("-" * 80)
+
+    state_counts = {s: 0 for s in SKILL_STATES}
+    all_issues = []
+
+    for s in sorted(skills, key=lambda x: x.name):
+        lint = lint_skill(s.name)
+        state = lint["state"]
+        state_counts[state] = state_counts.get(state, 0) + 1
+
+        issue_str = "; ".join(f"[{sev}] {msg}" for sev, msg in lint["issues"]) if lint["issues"] else "OK"
+        print(f"{s.name:<30} {state:<12} {issue_str}")
+        all_issues.extend(lint["issues"])
+
+    print("-" * 80)
+    print(f"State machine summary: " + ", ".join(f"{k}={v}" for k, v in state_counts.items() if v > 0))
+
+    error_count = sum(1 for sev, _ in all_issues if sev == "ERROR")
+    if error_count > 0:
+        print(f"\n⚠️  {error_count} ERRORS found — skills need fixes before integration claim")
+    else:
+        print(f"\n✅ No ERRORS — all skills at least COMPLETE")
+
+
+
+# ───────────────────────────────────────────────────────────────────
 # CLI
 # ───────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: skill_manager.py <list|check|check-file|verify|verify-all> [args...]")
+        print("Usage: skill_manager.py <list|check|check-file|verify|verify-all|lint|lint-all> [args...]")
         print()
         print("Commands:")
         print("  list              — List all known skills")
         print("  check <pattern>   — Check if pattern already exists")
         print("  check-file <name> — Verify skill has all required files")
-        print("  verify-all        — Verify all skills")
+        print("  verify-all        — Verify all skills (basic file check)")
+        print("  lint <skill>      — Deep lint one skill (state machine + field check)")
+        print("  lint-all          — Lint all skills, show state machine")
         sys.exit(1)
 
     cmd = sys.argv[1]
@@ -306,6 +423,20 @@ if __name__ == "__main__":
         check_file(sys.argv[2])
     elif cmd == "verify-all":
         verify_all()
+    elif cmd == "lint":
+        if len(sys.argv) < 3:
+            print("Usage: skill_manager.py lint <skill-name>")
+            sys.exit(1)
+        result = lint_skill(sys.argv[2])
+        print(f"\n=== {result['name']} ===")
+        print(f"State: {result['state']}")
+        if result["issues"]:
+            for sev, msg in result["issues"]:
+                print(f"  [{sev}] {msg}")
+        else:
+            print("  No issues")
+    elif cmd == "lint-all":
+        lint_all()
     else:
         print(f"Unknown command: {cmd}")
         sys.exit(1)

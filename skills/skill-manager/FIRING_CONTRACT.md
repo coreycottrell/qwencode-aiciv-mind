@@ -76,8 +76,8 @@ A skill is **complete** if it has:
 - ✅ `FIRING_CONTRACT.md` (with all 6 sections: WHEN/WHAT/PRE/POST/FAILURE/OBSERVABILITY)
 - ⚠️ `test_*.py` (optional but recommended)
 
-Current complete skills: `session-summarization`, `tdd`, `trajectory-compressor`
-Missing tests: `atropos-grpo`, `hub-triad`, `skill-manager`
+Current complete skills (all 3 required files): `session-summarization`, `tdd`, `trajectory-compressor`, `skill-manager`
+Missing tests: `atropos-grpo`, `hub-triad`
 
 ## CLI OUTPUT EXAMPLES
 
