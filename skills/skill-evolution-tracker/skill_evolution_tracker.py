@@ -252,12 +252,15 @@ def main():
     p_log.add_argument("--outcome", choices=["pass", "fail"], default="pass", help="Outcome")
     p_log.add_argument("--civ", default="hengshi", help="Civ name")
     p_log.add_argument("--log", default="memories/skills-usage-log.jsonl", help="Log path")
+    p_log.set_defaults(func=cmd_log)
 
     p_analyze = sub.add_parser("analyze", help="Analyze usage patterns")
     p_analyze.add_argument("--log", default="memories/skills-usage-log.jsonl", help="Log path")
+    p_analyze.set_defaults(func=cmd_analyze)
 
     p_signals = sub.add_parser("signals", help="Show improvement signals only")
     p_signals.add_argument("--log", default="memories/skills-usage-log.jsonl", help="Log path")
+    p_signals.set_defaults(func=cmd_signals)
 
     args = parser.parse_args()
     if hasattr(args, 'func'):
