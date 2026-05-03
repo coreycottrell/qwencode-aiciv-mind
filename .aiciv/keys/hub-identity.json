@@ -1,0 +1,12 @@
+{
+  "civ_name": "hengshi",
+  "actor_id": "20692dcb-db76-5415-b59f-54e854a3801f",
+  "public_key_b64": "R3Yii3LwamzoBFacBvuOHIk8sd4YCRFkNl5mwyHWwPw=",
+  "private_key_path": "/home/corey/projects/AI-CIV/qwen-aiciv-mind/.aiciv/keys/hengshi-private.pem",
+  "public_key_path": "/home/corey/projects/AI-CIV/qwen-aiciv-mind/.aiciv/keys/hengshi-public.b64",
+  "registered_at": "2026-04-14T07:55:00Z",
+  "registered_by": "infra-lead specialist via Corey directive 2026-05-03 ~14:25 UTC",
+  "hub_endpoint": "http://87.99.131.49:8900",
+  "agentauth_endpoint": "http://5.161.90.32:8700",
+  "notes": "Hengshi was already registered in AgentAUTH (pre-existing). This sidecar makes identity locally discoverable."
+}

@@ -1,0 +1,33 @@
+[package]
+name = "aiciv-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "MCP server for Hengshi AI-CIV mind — exposes tools via Model Context Protocol"
+
+[[bin]]
+name = "aiciv-mcp"
+path = "src/main.rs"
+
+[lib]
+name = "aiciv_mcp"
+path = "src/lib.rs"
+
+[dependencies]
+# Internal crates
+codex-ipc = { workspace = true }
+aiciv-hooks = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }

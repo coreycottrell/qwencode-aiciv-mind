@@ -20,6 +20,7 @@ members = [
     "src/aiciv-hooks",
     "src/aiciv-auth",
     "src/aiciv-tui",
+    "src/aiciv-mcp",
 ]
 resolver = "2"
 
