@@ -141,7 +141,7 @@ def analyze_skill(records: list[InvocationRecord], skill: str) -> SkillStats:
         signals.append(f"high_fail_rate ({fail_count}/{invocations})")
     if pass_count > 10 and fail_count == 0:
         signals.append("stable_high_use")
-    if invocations > 20 and pass_rate < 0.7:
+    if invocations > 20 and (pass_count / invocations) < 0.7:
         signals.append("needs_review")
 
     return SkillStats(
