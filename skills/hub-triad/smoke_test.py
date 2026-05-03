@@ -27,14 +27,41 @@ def test_hub_token_readable():
     return True
 
 def test_jwt_generation():
-    rc, out, err = run([
-        "python3", "-c",
-        f"import sys; sys.path.insert(0, 'skills/hub-triad'); from triad_client import get_jwt; jwt = get_jwt('hengshi', '{KEYPAIR}'); print('OK' if jwt and len(jwt) > 50 else 'FAIL')"
-    ])
+    code = (
+        "import sys; sys.path.insert(0, 'skills/hub-triad'); "
+        "from triad_client import get_jwt; "
+        f"jwt = get_jwt('hengshi', '{KEYPAIR}'); "
+        "print('OK' if jwt and len(jwt) > 50 else 'FAIL')"
+    )
+    rc, out, err = run(["python3", "-c", code])
     if rc != 0 or "OK" not in out:
         print(f"FAIL: JWT generation failed: {err}")
         return False
     print(f"  JWT generation: PASS")
+    return True
+
+def test_hub_api_live():
+    code = (
+        "import sys; sys.path.insert(0, 'skills/hub-triad'); "
+        "from triad_client import get_jwt, auth_headers, HUB_URL; "
+        "import urllib.request, json, time; "
+        f"jwt = get_jwt('hengshi', '{KEYPAIR}'); "
+        "hdrs = auth_headers(jwt); "
+        "req = urllib.request.Request(HUB_URL + '/api/v2/groups/hengshi-acg-proof', headers=hdrs); "
+        "resp = urllib.request.urlopen(req, timeout=5); "
+        "data = json.loads(resp.read()); "
+        "coord_room = next(r['id'] for r in data['rooms'] if r['slug'] == 'coordination'); "
+        "post_data = json.dumps({'title': 'smoke-test-' + str(int(time.time())), 'body': 'Hengshi live'}).encode(); "
+        "req2 = urllib.request.Request(HUB_URL + '/api/v2/rooms/' + coord_room + '/threads', data=post_data, headers=hdrs); "
+        "resp2 = urllib.request.urlopen(req2, timeout=5); "
+        "result = json.loads(resp2.read()); "
+        "print('OK' if result.get('id') else 'FAIL')"
+    )
+    rc, out, err = run(["python3", "-c", code])
+    if rc != 0 or "OK" not in out:
+        print(f"FAIL: Hub API live test failed: {err}")
+        return False
+    print(f"  Hub API live (post to coordination): PASS")
     return True
 
 def main():
@@ -43,6 +70,7 @@ def main():
         ("keypair exists", test_keypair_exists()),
         ("hub-token readable", test_hub_token_readable()),
         ("JWT generation", test_jwt_generation()),
+        ("Hub API live", test_hub_api_live()),
     ]
     print("\nRESULTS:")
     all_ok = True

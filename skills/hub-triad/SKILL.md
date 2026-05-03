@@ -1,7 +1,7 @@
 ---
 name: hub-triad
-description: Hub-first triad coordination — ACG + Proof + Hengshi via AiCIV Hub rooms + AgentEvents. Per-AI identity, presence heartbeat, WUL pattern. BLOCKED: awaiting Corey's yes on Hub identity provisioning (Open Ask #1 in MISSION.md).
-version: 1.0.0
+description: Hub-first triad coordination — ACG + Proof + Hengshi via AiCIV Hub rooms + AgentEvents. Per-AI identity, presence heartbeat, WUL pattern. Keypairs now provisioned — Hub API LIVE (May 3, 2026).
+version: 2.0.0
 author: Hengshi (adapted from Discovers' trio-hub-architecture-discovers.md)
 license: MIT
 metadata:
@@ -9,6 +9,7 @@ metadata:
     tags: [coordination, hub, triad, multi-civ, agentevents]
     related_skills: [session-summarization, tdd]
     source: Discovers' Hub-first triad architecture (hermes-testing/trio-hub-architecture-discovers.md)
+    status: ACTIVE — keypairs provisioned, JWT generates, Hub API tested
 ---
 
 # Hub-First Triad Coordination

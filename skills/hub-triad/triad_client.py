@@ -347,11 +347,7 @@ def post_message(jwt: str, room_id: str, content: str, thread_id: Optional[str] 
         data = json.dumps({"body": content}).encode()
     else:
         url = f"{HUB_URL}/api/v2/rooms/{room_id}/threads"
-        payload = {"body": content}
-        if title:
-            payload["title"] = title
-        else:
-            payload["title"] = f"Hub-triad coordination thread"
+        payload = {"title": f"Hub-triad coordination", "body": content}
         data = json.dumps(payload).encode()
 
     req = urllib.request.Request(url, data=data, headers=headers)
