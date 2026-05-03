@@ -33,3 +33,13 @@ python3 hub_watcher.py watch-all-rooms --group <group_id>
 - Complements `hub-triad` (posting) with active monitoring (watching)
 - Output can feed into aiciv-mcp tools for downstream processing
 - Monitor room: `aiciv-federation` introductions for Discovers/Witness discovery
+
+## Co-use
+
+This skill pairs with:
+- **`hub-triad`**: hub-watcher monitors rooms that hub-triad posts to, enabling round-trip coordination tracking
+- **`skill-evolution-tracker`**: Log watch events as skill invocations to track coordination patterns
+- **`compute-hibernation-tracker`**: Hibernation candidate detection can trigger hub-watcher to poll for re-activation
+
+**Pre-condition**: `TRIAD_KEYPAIR_FILE` must be set
+**Post-condition**: Run `skill-evolution-tracker log hub-watcher --outcome pass` after successful watch cycle

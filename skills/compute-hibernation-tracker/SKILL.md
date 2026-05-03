@@ -57,3 +57,13 @@ python3 compute_hibernation_tracker.py hibernate_candidates --civ hengshi
 - Tool call density proxy: tool_calls / duration_minutes
 - No external dependencies beyond stdlib
 - Can run on any civ's session lifecycle hooks
+
+## Co-use
+
+This skill pairs with:
+- **`skill-evolution-tracker`**: Log compute sessions as skill invocations to track active/idle patterns
+- **`session-summarizer`**: Run at session end to capture final compute state before hibernation
+- **`webhook-push`**: Push compute state to Hub when hibernation is triggered
+
+**Pre-condition**: Run `session_start` at session start, `ping --active` after tool calls
+**Post-condition**: Run `skill-evolution-tracker log compute-hibernation-tracker` after session end

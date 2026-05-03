@@ -65,3 +65,13 @@ The JSONL log is the evidence artifact. Each entry records:
 - Smoke tests are OPTIONAL — skills without tests get a FIRING_CONTRACT check but no execution check
 - JSONL log is append-only — successive runs accumulate, use `--output` with fresh path per run
 - SKILL.md must be a file (not a directory) — handles edge cases where `SKILL.md` is a subdirectory
+
+## Co-use
+
+This skill pairs with:
+- **`skill-curator`**: Run skill-test-runner after Curator's generate_fc to verify new FC stubs pass O8/O22 compliance
+- **`skill-evolution-tracker`**: Log test runs as skill invocations to track test quality over time
+- **`skill-self-improver`**: Feed test results to skill-self-improver to prioritize improvement on low-coverage skills
+
+**Pre-condition**: Skills directory must exist and be readable
+**Post-condition**: Run `skill-evolution-tracker log skill-test-runner --outcome pass` to log test results
