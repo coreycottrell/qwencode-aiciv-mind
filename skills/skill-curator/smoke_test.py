@@ -65,6 +65,29 @@ def test_generate_fc_dry_run() -> bool:
     print("  generate_fc --dry-run: PASS")
     return True
 
+
+def test_generate_fc_with_grade_object() -> bool:
+    """Test generate_fc_stub accepts SkillGrade object (common user error path)."""
+    rc, out, err = run([
+        "python3", "-c",
+        (
+            "import sys; sys.path.insert(0, 'skills/skill-curator'); "
+            "from skill_curator import generate_fc_stub, grade_skill; "
+            "from pathlib import Path; "
+            "g = grade_skill(Path('skills/skill-curator'), 'hengshi'); "
+            "stub = generate_fc_stub(g); "
+            "print('OK' if 'skill-curator' in stub and 'Firing Contract' in stub else 'FAIL')"
+        ),
+    ])
+    if rc != 0:
+        print(f"FAIL: grade object path failed: {err}")
+        return False
+    if "OK" not in out:
+        print(f"FAIL: stub missing expected content: {out}")
+        return False
+    print("  generate_fc_stub(grade_object): PASS")
+    return True
+
 def test_analyze_empty() -> bool:
     """Test analyze with empty/invalid log."""
     rc, out, err = run([
@@ -87,6 +110,7 @@ def main():
     results = []
     results.append(("grade", test_grade_command()))
     results.append(("generate_fc --dry-run", test_generate_fc_dry_run()))
+    results.append(("generate_fc with grade object", test_generate_fc_with_grade_object()))
     results.append(("analyze (empty log)", test_analyze_empty()))
 
     print("")

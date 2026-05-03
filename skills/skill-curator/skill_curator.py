@@ -170,6 +170,12 @@ def generate_fc_stub(skill_path: Path, frontmatter: Optional[dict] = None) -> st
     If frontmatter is provided (from SKILL.md parsing), use it to pre-fill
     name and description so the stub is more meaningful from the start.
     """
+    # Support being called with a SkillGrade object (common user error)
+    if hasattr(skill_path, "skill_path") and hasattr(skill_path, "skill_name"):
+        grade = skill_path
+        skill_path = Path(grade.skill_path)
+        if frontmatter is None and grade.frontmatter:
+            frontmatter = grade.frontmatter
     skill_name = skill_path.name
     fm_name = frontmatter.get("name", "") if frontmatter else ""
     fm_desc = frontmatter.get("description", "") if frontmatter else ""
