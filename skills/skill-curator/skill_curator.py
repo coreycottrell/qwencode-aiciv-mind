@@ -46,8 +46,9 @@ class SkillGrade:
     has_skill_md: bool
     has_fc: bool
     frontmatter_ok: bool
-    civ: str
-    ts: str
+    frontmatter: Optional[dict] = None  # parsed from SKILL.md for use by generate_fc
+    civ: str = "unknown"
+    ts: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -58,6 +59,7 @@ class SkillGrade:
             "has_skill_md": self.has_skill_md,
             "has_fc": self.has_fc,
             "frontmatter_ok": self.frontmatter_ok,
+            "frontmatter": self.frontmatter,
             "civ": self.civ,
             "ts": self.ts,
         }
@@ -88,14 +90,20 @@ def parse_frontmatter(text: str) -> tuple[Optional[dict], str]:
 
 def check_frontmatter(skill_md: Path) -> tuple[bool, list[str]]:
     """Check if SKILL.md has required name+description frontmatter fields."""
+    ok, reasons, _ = check_frontmatter_full(skill_md)
+    return ok, reasons
+
+
+def check_frontmatter_full(skill_md: Path) -> tuple[bool, list[str], Optional[dict]]:
+    """Check if SKILL.md has required name+description frontmatter fields. Returns (ok, reasons, fm_dict)."""
     try:
         text = skill_md.read_text()
     except Exception:
-        return False, ["skill_md_read_error"]
+        return False, ["skill_md_read_error"], None
 
     fm, _ = parse_frontmatter(text)
     if fm is None:
-        return False, ["no_frontmatter"]
+        return False, ["no_frontmatter"], None
 
     missing = []
     if not fm.get("name"):
@@ -103,7 +111,7 @@ def check_frontmatter(skill_md: Path) -> tuple[bool, list[str]]:
     if not fm.get("description"):
         missing.append("description_missing")
 
-    return len(missing) == 0, missing
+    return len(missing) == 0, missing, fm
 
 
 def grade_skill(skill_path: Path, civ: str) -> SkillGrade:
@@ -113,11 +121,13 @@ def grade_skill(skill_path: Path, civ: str) -> SkillGrade:
     has_skill_md = False
     has_fc = False
     frontmatter_ok = False
+    frontmatter = None
 
     skill_md = skill_path / SKILL_MD
     if skill_md.is_file():
         has_skill_md = True
-        frontmatter_ok, fm_reasons = check_frontmatter(skill_md)
+        frontmatter_ok, fm_reasons, fm = check_frontmatter_full(skill_md)
+        frontmatter = fm
         reasons.extend(fm_reasons)
     else:
         reasons.append("missing_skill_md")
@@ -144,6 +154,7 @@ def grade_skill(skill_path: Path, civ: str) -> SkillGrade:
         has_skill_md=has_skill_md,
         has_fc=has_fc,
         frontmatter_ok=frontmatter_ok,
+        frontmatter=frontmatter,
         civ=civ,
         ts=datetime.now(timezone.utc).isoformat(),
     )
@@ -153,12 +164,19 @@ def grade_skill(skill_path: Path, civ: str) -> SkillGrade:
 # FC Generation
 # ───────────────────────────────────────────────────────────────────
 
-def generate_fc_stub(skill_path: Path) -> str:
-    """Generate a stub FIRING_CONTRACT.md for a skill missing one."""
+def generate_fc_stub(skill_path: Path, frontmatter: Optional[dict] = None) -> str:
+    """Generate a FIRING_CONTRACT.md stub for a skill missing one.
+
+    If frontmatter is provided (from SKILL.md parsing), use it to pre-fill
+    name and description so the stub is more meaningful from the start.
+    """
     skill_name = skill_path.name
+    fm_name = frontmatter.get("name", "") if frontmatter else ""
+    fm_desc = frontmatter.get("description", "") if frontmatter else ""
+
     return f"""---
-name: {skill_name}
-description: TODO: Write skill description — what problem does this solve?
+name: {fm_name or skill_name}
+description: {fm_desc or "TODO: Write skill description — what problem does this solve?"}
 version: 0.1.0
 ---
 
@@ -167,7 +185,6 @@ version: 0.1.0
 ## WHEN
 
 ```bash
-# How to invoke this skill
 python3 skills/{skill_name}/run.py
 ```
 
@@ -176,7 +193,7 @@ Triggered by:
 
 ## WHAT
 
-TODO: What does this skill do?
+{fm_desc or "TODO: Describe what this skill does."}
 
 ## PRE
 
@@ -273,6 +290,7 @@ def cmd_generate_fc(args):
         sys.exit(1)
 
     skills = find_skills(root)
+    grades = {sp.name: grade_skill(sp, civ) for sp in skills}
     generated = 0
 
     for sp in skills:
@@ -280,7 +298,8 @@ def cmd_generate_fc(args):
         if fc_path.exists():
             continue
 
-        stub = generate_fc_stub(sp)
+        g = grades.get(sp.name)
+        stub = generate_fc_stub(sp, frontmatter=g.frontmatter if g else None)
         if dry_run:
             print(f"[DRY RUN] Would create: {fc_path}")
         else:
