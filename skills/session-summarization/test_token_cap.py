@@ -2,12 +2,12 @@
 """
 Token Cap Enforcement Test
 
-Proves that summarize_sessions() ENFORCES the ≤750-token budget in CODE,
+Proves that summarize_sessions() ENFORCES the ≤MAX_SUMMARY_TOKENS budget in CODE,
 not just by requesting it in the prompt.
 
-Pattern: mock the LLM API to return a known response >750 words,
+Pattern: mock the LLM API to return a known response >MAX_SUMMARY_TOKENS words,
 then verify:
-1. The returned summary is truncated to ≤750 words
+1. The returned summary is truncated to ≤MAX_SUMMARY_TOKENS words
 2. A truncation marker is present
 3. A warning is logged
 
@@ -41,9 +41,9 @@ class TestTokenCapEnforcement(unittest.TestCase):
     """Prove token budget is code-enforced, not just requested."""
 
     def test_truncation_enforcement_long_response(self):
-        """When LLM returns >750 words, code truncates and adds marker."""
-        # Create a 1000-word response (deliberately over the 750 cap)
-        long_words = ["word"] * 1000
+        """When LLM returns >MAX_SUMMARY_TOKENS words, code truncates and adds marker."""
+        # Create a 2500-word response (deliberately over the MAX_SUMMARY_TOKENS cap of 2048)
+        long_words = ["word"] * 2500
         long_response = " ".join(long_words)
 
         # Mock the LLM API call
@@ -90,7 +90,7 @@ class TestTokenCapEnforcement(unittest.TestCase):
             print(f"   Truncation marker present: {'...[summary truncated' in result}")
 
     def test_no_truncation_short_response(self):
-        """When LLM returns <750 words, code returns it unchanged."""
+        """When LLM returns <MAX_SUMMARY_TOKENS words, code returns it unchanged."""
         short_response = "This is a short summary of the session."  # ~8 words
 
         mock_response = {
@@ -114,9 +114,9 @@ class TestTokenCapEnforcement(unittest.TestCase):
             self.assertNotIn("[truncated", result)
             print(f"✅ PASS: 8-word response passed through unchanged (no truncation)")
 
-    def test_boundary_at_exactly_750_words(self):
-        """When LLM returns exactly 750 words, no truncation needed."""
-        boundary_words = ["token"] * 750
+    def test_boundary_at_exactly_MAX_SUMMARY_TOKENS_words(self):
+        """When LLM returns exactly MAX_SUMMARY_TOKENS words, no truncation needed."""
+        boundary_words = ["token"] * MAX_SUMMARY_TOKENS
         boundary_response = " ".join(boundary_words)
 
         mock_response = {
@@ -136,9 +136,9 @@ class TestTokenCapEnforcement(unittest.TestCase):
             )
 
             word_count = len(result.split())
-            self.assertEqual(word_count, 750)
+            self.assertEqual(word_count, MAX_SUMMARY_TOKENS)
             self.assertNotIn("[truncated", result)
-            print(f"✅ PASS: Exactly 750 words — no truncation needed")
+            print(f"✅ PASS: Exactly {MAX_SUMMARY_TOKENS} words — no truncation needed")
 
 
 if __name__ == "__main__":

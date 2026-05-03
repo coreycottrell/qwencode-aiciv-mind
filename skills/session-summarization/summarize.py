@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 SUMMARIZATION_MODEL = os.getenv("SUMMARIZATION_MODEL", "devstral-small-2:24b")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "https://api.ollama.com")
 OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY", "")
-MAX_SUMMARY_TOKENS = int(os.getenv("MAX_SUMMARY_TOKENS", "750"))
+MAX_SUMMARY_TOKENS = int(os.getenv("MAX_SUMMARY_TOKENS", "2048"))
 MAX_SESSION_CHARS = int(os.getenv("MAX_SESSION_CHARS", "100000"))
 SUMMARY_CACHE_ENABLED = os.getenv("SUMMARY_CACHE_ENABLED", "true").lower() == "true"
 SCRATCHPAD_DIR = Path(os.getenv("SCRATCHPAD_DIR", "/home/corey/projects/AI-CIV/qwen-aiciv-mind/scratchpads"))

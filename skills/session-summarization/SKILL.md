@@ -32,7 +32,7 @@ Raw transcript injection:
 - Context window overflows on long sessions
 
 Summarized injection:
-- Fixed token budget (configurable, default ~750 tokens per summary)
+- Fixed token budget (configurable, default ~2048 tokens per summary)
 - Preserves signal, removes boilerplate
 - Context window stays clean
 
@@ -48,7 +48,7 @@ Summarized injection:
 
 **Postconditions**:
 - Returns a list of session summaries, each with: session_id, timestamp, summary text, relevance score
-- Each summary capped at `MAX_SUMMARY_TOKENS` (default: 750)
+- Each summary capped at `MAX_SUMMARY_TOKENS` (default: 2048)
 - Original transcripts never modified
 
 ## Firing Contract
@@ -85,7 +85,7 @@ for s in summaries:
 class SessionSummary:
     session_id: str          # e.g., "2026-05-03_hermes-exploration"
     timestamp: str           # ISO timestamp of session
-    summary: str            # LLM-generated summary, max 750 tokens
+    summary: str            # LLM-generated summary, max 2048 tokens
     relevance_score: float  # 0.0-1.0, based on query match
     source_file: str        # Which file was summarized
 ```
@@ -95,7 +95,7 @@ class SessionSummary:
 | Env Var | Default | Description |
 |---------|---------|-------------|
 | `SUMMARIZATION_MODEL` | `devstral-small-2:24b` | Model for summarization (fast/cheap) |
-| `MAX_SUMMARY_TOKENS` | `750` | Max tokens per summary |
+| `MAX_SUMMARY_TOKENS` | `2048` | Max tokens per summary |
 | `MAX_SESSION_CHARS` | `100000` | Chars loaded per session before truncation |
 | `SUMMARY_CACHE_ENABLED` | `true` | Cache summaries to avoid re-summarizing |
 
