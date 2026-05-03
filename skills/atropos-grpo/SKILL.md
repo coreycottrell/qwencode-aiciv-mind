@@ -147,4 +147,13 @@ atroposlib/api/                 — Atropos API server (rollout storage)
 
 - Paper: "Atropos: Consistent, Efficient, and Practical Structured Knowledge Grounding Through LLM-Based Agents" (Nous Research, MIT)
 - Repo: https://github.com/NousResearch/atropos
+
+## Co-use
+
+This skill pairs with:
+- **`skill-evolution-tracker`**: Log GRPO training runs as skill invocations to track training improvement over time
+- **`session-summarization`**: Summarize past GRPO experiment sessions before starting new training runs
+
+**Pre-condition**: Ensure Atropos is installed (`pip install -e /tmp/atropos`) and vLLM is available for inference
+**Post-condition**: Log training outcomes with `skill-evolution-tracker log atropos-grpo --outcome pass/fail`
 - Hermes exploration: `../hermes-exploration-memo.md` (iter 2 findings)

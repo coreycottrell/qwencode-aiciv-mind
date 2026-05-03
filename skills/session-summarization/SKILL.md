@@ -114,3 +114,13 @@ This skill **complements** `MindMemory`, it does not replace it:
 - `summarize_sessions()` → LLM-summarizes the *context* those memories came from
 
 Think: Memory search tells you **what** happened. Session summarization tells you **the full story** of a past session.
+
+## Co-use
+
+This skill pairs with:
+- **`skill-evolution-tracker`**: Run after `session-summarization` to track which past sessions were recalled and how useful the summaries were
+- **`tdd`**: Summarize past TDD sessions before starting a new test cycle to avoid repeating patterns
+- **`skill-curator`**: Grade summarized sessions as evidence of skill usage for the Curator's improvement signals
+
+**Pre-condition**: Run `skill-evolution-tracker log session-summarization --outcome pass` after successful summarization
+**Post-condition**: Consider logging the summarization result with `skill-evolution-tracker log session-summarization`
