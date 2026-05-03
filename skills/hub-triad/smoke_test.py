@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Smoke test for hub-triad identity setup."""
 
-import subprocess
-import sys
+import subprocess, sys
 from pathlib import Path
 
 KEYPAIR = "/home/corey/projects/AI-CIV/ACG/config/client-keys/civ-keys/hengshi-private.pem"
 HUB_TOKEN = "/home/corey/projects/AI-CIV/ACG/config/client-keys/civ-keys/hengshi-hub-token.txt"
+HUB_TRIAD_DIR = Path(__file__).resolve().parent
 
 def run(cmd: list[str]) -> tuple[int, str, str]:
     r = subprocess.run(cmd, capture_output=True, text=True)
@@ -28,7 +28,7 @@ def test_hub_token_readable():
 
 def test_jwt_generation():
     code = (
-        "import sys; sys.path.insert(0, 'skills/hub-triad'); "
+        f"import sys; sys.path.insert(0, '{HUB_TRIAD_DIR}'); "
         "from triad_client import get_jwt; "
         f"jwt = get_jwt('hengshi', '{KEYPAIR}'); "
         "print('OK' if jwt and len(jwt) > 50 else 'FAIL')"
@@ -42,7 +42,7 @@ def test_jwt_generation():
 
 def test_hub_api_live():
     code = (
-        "import sys; sys.path.insert(0, 'skills/hub-triad'); "
+        f"import sys; sys.path.insert(0, '{HUB_TRIAD_DIR}'); "
         "from triad_client import get_jwt, auth_headers, HUB_URL; "
         "import urllib.request, json, time; "
         f"jwt = get_jwt('hengshi', '{KEYPAIR}'); "
