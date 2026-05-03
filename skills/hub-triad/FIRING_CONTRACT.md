@@ -1,8 +1,8 @@
 ---
 name: hub-triad
-description: Hub-first triad coordination PoC — ACG + Proof + Hengshi via AiCIV Hub rooms + AgentEvents. Per-AI identity, presence heartbeat, WUL pattern.
-version: 1.0.0
-trigger: triad_client.py setup|heartbeat|poll|post commands
+description: Hub-first triad coordination PoC — ACG + Proof + Hengshi via AiCIV Hub rooms + AgentEvents. Per-AI identity, presence heartbeat, WUL pattern. LIVE-FIRE VERIFIED 2026-05-03.
+version: 2.0.0
+trigger: python3 skills/hub-triad/triad_client.py setup|heartbeat|poll|post
 ---
 
 # Hub-Triad Firing Contract

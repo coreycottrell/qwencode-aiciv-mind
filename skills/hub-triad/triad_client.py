@@ -55,7 +55,7 @@ def get_jwt(civ_id: str, keypair_file: str) -> str:
 
     Args:
         civ_id: e.g. "hengshi", "acg", "proof"
-        keypair_file: Path to JSON with 'private_key' (base64-encoded)
+        keypair_file: Path to JSON (base64 private_key) or OpenSSH PEM file
 
     Returns:
         JWT string (valid 1 hour)
@@ -64,19 +64,42 @@ def get_jwt(civ_id: str, keypair_file: str) -> str:
         RuntimeError: If auth fails
     """
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from cryptography.hazmat.primitives import serialization
 
-    # Load keypair
+    # Load keypair — try JSON first, fall back to PEM/PKCS#8
     try:
         with open(keypair_file) as f:
             kp = json.load(f)
         priv_key = Ed25519PrivateKey.from_private_bytes(base64.b64decode(kp["private_key"]))
-    except (FileNotFoundError, KeyError, ValueError) as e:
-        raise RuntimeError(f"Failed to load keypair from {keypair_file}: {e}")
+    except (json.JSONDecodeError, KeyError, ValueError):
+        # Try PEM/PKCS#8 format (-----BEGIN PRIVATE KEY-----)
+        try:
+            with open(keypair_file, "rb") as f:
+                pem_data = f.read()
+            priv_key = serialization.load_pem_private_key(
+                pem_data,
+                password=None,
+            )
+        except (FileNotFoundError, ValueError) as e:
+            raise RuntimeError(f"Failed to load keypair from {keypair_file}: {e}")
+
+    # Determine AgentAUTH URL — prefer identity JSON if present
+    agentauth_url = AGENTAUTH_URL
+    identity_path = Path(__file__).parent.parent.parent / ".aiciv" / "keys" / "hub-identity.json"
+    if identity_path.exists():
+        try:
+            with open(identity_path) as f:
+                identity = json.load(f)
+            if identity.get("agentauth_endpoint"):
+                agentauth_url = identity["agentauth_endpoint"].rstrip("/")
+                logger.info("Using AgentAUTH endpoint from hub-identity.json: %s", agentauth_url)
+        except Exception:
+            pass
 
     # 1. Get challenge
     try:
         req = urllib.request.Request(
-            f"{AGENTAUTH_URL}/challenge",
+            f"{agentauth_url}/challenge",
             data=json.dumps({"civ_id": civ_id}).encode(),
             headers={"Content-Type": "application/json"},
         )
@@ -94,7 +117,7 @@ def get_jwt(civ_id: str, keypair_file: str) -> str:
     # 3. Verify → get JWT
     try:
         req = urllib.request.Request(
-            f"{AGENTAUTH_URL}/verify",
+            f"{agentauth_url}/verify",
             data=json.dumps({
                 "challenge_id": challenge_id,
                 "signature": sig,
@@ -168,29 +191,47 @@ def create_or_get_group(jwt: str, slug: str, display_name: str) -> str:
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             result = json.loads(resp.read())
-            logger.info("Created group: %s", result.get("id", "?"))
-            return result["id"]
+            # Response format: {"group": {"id": "...", "slug": "..."}, "room": {...}, "membership": {...}}
+            group_data = result.get("group", {})
+            group_id = group_data.get("id")
+            if not group_id:
+                raise RuntimeError(f"Unexpected create group response: {result}")
+            logger.info("Created group: %s", group_id)
+            return group_id
     except urllib.error.HTTPError as e:
         if e.code == 409:
-            # Group exists — fetch it
+            # Group exists — fetch it via actor groups endpoint
             logger.info("Group %s already exists, fetching ID", slug)
+            gid = get_group_id(jwt, slug)
+            if gid:
+                return gid
+            raise RuntimeError(f"Group {slug} exists but could not find its ID")
         else:
             raise RuntimeError(f"Failed to create group: {e}")
 
 
 def get_group_id(jwt: str, slug: str) -> Optional[str]:
-    """Get group ID by slug. Returns None if not found."""
+    """Get group ID by slug. Returns None if not found.
+
+    Uses /api/v1/actors/{actor_id}/groups to enumerate memberships.
+    """
     headers = auth_headers(jwt)
+
+    # Get actor ID from identity file
+    actor_id = get_actor_id("hengshi")  # civ_id doesn't matter for lookup
+
     try:
+        # List actor's groups
         req = urllib.request.Request(
-            f"{HUB_URL}/api/v1/groups?limit=100",
+            f"{HUB_URL}/api/v1/actors/{actor_id}/groups",
             headers=headers,
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             result = json.loads(resp.read())
-            for group in result.get("groups", []):
+            for item in result:
+                group = item.get("group", {})
                 if group.get("slug") == slug:
-                    return group["id"]
+                    return group.get("id")
     except urllib.error.HTTPError:
         pass
     return None
@@ -210,8 +251,11 @@ def create_room(jwt: str, group_id: str, slug: str, name: str) -> str:
     )
     with urllib.request.urlopen(req, timeout=10) as resp:
         result = json.loads(resp.read())
-        logger.info("Created room %s: %s", slug, result.get("id", "?"))
-        return result["id"]
+        # Response format: {"room": {"id": "...", "slug": "..."}} or direct room object
+        room_data = result.get("room", result)
+        room_id = room_data.get("id")
+        logger.info("Created room %s: %s", slug, room_id)
+        return room_id
 
 
 def get_rooms(jwt: str, group_id: str) -> dict:
@@ -224,6 +268,7 @@ def get_rooms(jwt: str, group_id: str) -> dict:
     with urllib.request.urlopen(req, timeout=10) as resp:
         result = json.loads(resp.read())
         rooms = {}
+        # Response is a list of room objects directly
         for room in result if isinstance(result, list) else result.get("rooms", []):
             rooms[room["slug"]] = room["id"]
         return rooms
@@ -293,16 +338,22 @@ def send_heartbeat(jwt: str, actor_id: str, status: str = "online", working_on: 
 # Posts — Create Thread and Reply
 # ───────────────────────────────────────────────────────────────────
 
-def post_message(jwt: str, room_id: str, content: str, thread_id: Optional[str] = None) -> str:
+def post_message(jwt: str, room_id: str, content: str, thread_id: Optional[str] = None, title: Optional[str] = None) -> str:
     """Post a message to a room or thread. Returns post_id."""
     headers = auth_headers(jwt)
 
     if thread_id:
         url = f"{HUB_URL}/api/v2/threads/{thread_id}/posts"
+        data = json.dumps({"body": content}).encode()
     else:
         url = f"{HUB_URL}/api/v2/rooms/{room_id}/threads"
+        payload = {"body": content}
+        if title:
+            payload["title"] = title
+        else:
+            payload["title"] = f"Hub-triad coordination thread"
+        data = json.dumps(payload).encode()
 
-    data = json.dumps({"body": content}).encode()
     req = urllib.request.Request(url, data=data, headers=headers)
     with urllib.request.urlopen(req, timeout=10) as resp:
         result = json.loads(resp.read())
@@ -353,14 +404,27 @@ def cmd_setup():
     print(f"  Coordination room subscribed: {coord_room_id}")
 
 
+def get_actor_id(civ_id: str) -> str:
+    """Get actor_id from hub-identity.json, fall back to derived form."""
+    identity_path = Path(__file__).parent.parent.parent / ".aiciv" / "keys" / "hub-identity.json"
+    if identity_path.exists():
+        try:
+            with open(identity_path) as f:
+                identity = json.load(f)
+            if identity.get("actor_id"):
+                return identity["actor_id"]
+        except Exception:
+            pass
+    return f"Actor:AiCIV/{civ_id}"
+
+
 def cmd_heartbeat(status: str = "online", working_on: str = ""):
     """Send heartbeat."""
     if not KEYPAIR_FILE:
         print("ERROR: TRIAD_KEYPAIR_FILE not set. Hub identity required.")
         return
     jwt = get_jwt(CIV_ID, KEYPAIR_FILE)
-    # Actor ID is derived from civ_id
-    actor_id = f"Actor:AiCIV/{CIV_ID}"
+    actor_id = get_actor_id(CIV_ID)
     send_heartbeat(jwt, actor_id, status, working_on)
 
 
