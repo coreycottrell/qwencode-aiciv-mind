@@ -23,3 +23,29 @@ without any LLM dependency — pure Python HTTP + git subprocess.
 - Local git state: `git log`, `git diff`, `git status` — no LLM needed
 - Can run as a post-commit hook or on-demand CLI
 - Self-contained: no external LLM APIs required
+
+## Examples
+
+```bash
+# Push git state to Hub coordination room
+python3 skills/webhook-push/webhook_push.py push
+
+# Dry run — show what would be pushed
+python3 skills/webhook-push/webhook_push.py push --dry-run
+
+# Show current git state
+python3 skills/webhook-push/webhook_push.py status
+
+# Install as git post-commit hook
+python3 skills/webhook-push/webhook_push.py setup
+```
+
+## Co-use
+
+This skill pairs with:
+- **`hub-triad`**: Webhook-push uses hub-triad's JWT auth and posts to the same coordination room
+- **`skill-evolution-tracker`**: Log webhook-push runs to track git state push patterns over time
+- **`compute-hibernation-tracker`**: Run at session end to push final git state before hibernation
+
+**Pre-condition**: `TRIAD_KEYPAIR_FILE` must be set (same as hub-triad)
+**Post-condition**: Run `skill-evolution-tracker log webhook-push --outcome pass` to log the push

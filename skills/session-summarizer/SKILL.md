@@ -38,3 +38,13 @@ python3 session_summarizer.py analyze
 - Git-aware: detects uncommitted changes
 - No external dependencies beyond stdlib
 - Session-scoped: designed for end-of-work capture
+
+## Co-use
+
+This skill pairs with:
+- **`skill-evolution-tracker`**: Log session snapshots as skill invocations to track session continuity patterns
+- **`skill-curator`**: Capture Curator sessions to remember what skills were curated and why
+- **`compute-hibernation-tracker`**: Run at session end before hibernation to capture final state
+
+**Pre-condition**: Run `session-summarizer snapshot` at end of each work block
+**Post-condition**: Analyze sessions with `session-summarizer analyze` to find patterns in session continuity
