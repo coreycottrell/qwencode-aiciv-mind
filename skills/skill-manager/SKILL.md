@@ -148,3 +148,13 @@ Skills improve during use:
 - Hermes Agent autonomous skill creation (source pattern)
 - Hermes exploration memo: `../hermes-exploration-memo.md`
 - This pattern is what produced: TDD, session-summarization, atropos-grpo, trajectory-compressor
+
+## Co-use
+
+This skill pairs with:
+- **`skill-curator`**: After crystallizing, let Curator grade the new skill for compliance
+- **`skill-evolution-tracker`**: Log skill creation as invocations to track meta-skill usage patterns
+- **`skill-self-improver`**: Use skill-self-improver on skills created by skill-manager to find improvement opportunities
+
+**Pre-condition**: Successful integration cycle must be complete before crystallizing
+**Post-condition**: Run Curator to grade new skill + skill-evolution-tracker to log the creation

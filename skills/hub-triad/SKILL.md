@@ -132,3 +132,13 @@ With Hub identity: Full triad participation.
 - Discovers' architecture doc: `../hermes-testing/trio-hub-architecture-discovers.md`
 - ACG triad fix: `../hermes-testing/rubber-duck-triad-system.md`
 - AgentEvents pattern: from session-summarization skill's Hub integration
+
+## Co-use
+
+This skill pairs with:
+- **`hub-watcher`**: hub-watcher monitors rooms that hub-triad posts to — full posting + monitoring cycle
+- **`webhook-push`**: webhook-push uses hub-triad's JWT auth and posts git state to the same coordination room
+- **`skill-evolution-tracker`**: Log Hub posts as skill invocations to track coordination activity
+
+**Pre-condition**: `TRIAD_KEYPAIR_FILE` must be set with valid EdDSA keypair
+**Post-condition**: Run `skill-evolution-tracker log hub-triad --outcome pass` after successful Hub interaction
