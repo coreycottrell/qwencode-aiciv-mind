@@ -88,21 +88,43 @@ class BatchResult:
 # ───────────────────────────────────────────────────────────────────
 
 def discover_skills(base_dir: Path) -> list[Path]:
-    """Find all skill directories under base_dir."""
+    """Find all skill directories under base_dir.
+
+    Walks base_dir recursively to find SKILL.md files nested inside
+    subdirectories (e.g. custom/, flows/, wake-up-modes/ contain skills).
+    Handles edge case: SKILL.md as a directory (not a file).
+    """
     skills = []
     if not base_dir.exists():
         return skills
 
-    for entry in base_dir.iterdir():
-        if entry.is_dir():
+    def walk(dir_path: Path):
+        for entry in dir_path.iterdir():
+            if not entry.is_dir():
+                continue
+            if entry.name.startswith("."):
+                continue
+            # Special container dirs — always recurse FIRST, even if they have their own SKILL.md
+            # (they are organizational buckets, not skills)
+            if entry.name in ("custom", "flows", "wake-up-modes", "autonomy"):
+                walk(entry)
+                continue
             skill_md = entry / "SKILL.md"
-            if skill_md.exists():
+            if skill_md.exists() and skill_md.is_file():
+                # Normal: SKILL.md is a file inside skill dir
                 skills.append(entry)
-            elif entry.name.startswith("."):
-                pass  # skip hidden dirs
+            elif skill_md.exists() and not skill_md.is_file():
+                # SKILL.md is a directory — rare but real (intent-signal-engine pattern).
+                # Look inside for the actual SKILL.md file.
+                inner = skill_md / "SKILL.md"
+                if inner.exists() and inner.is_file():
+                    skills.append(entry)
+                # else: empty SKILL.md dir — skip
             else:
-                # maybe skill without SKILL.md — still include as potential SKIP
-                skills.append(entry)
+                # Non-skill dir with no SKILL.md — skip
+                pass
+
+    walk(base_dir)
     return sorted(skills, key=lambda p: p.name)
 
 
@@ -246,20 +268,40 @@ def test_skill(skill_dir: Path) -> SkillTestResult:
     warnings = []
     checks = {}
 
-    # 1. SKILL.md exists and is a file
+    # 1. SKILL.md exists and is a file (normal case)
     skill_md = skill_dir / "SKILL.md"
     checks["skill_md_exists"] = skill_md.exists()
     if not skill_md.exists() or not skill_md.is_file():
-        errors.append(f"SKILL.md missing or is a directory — skipping skill")
-        return SkillTestResult(
-            skill_name=name,
-            skill_path=str(skill_dir),
-            status="SKIP",
-            checks=checks,
-            errors=errors,
-            warnings=warnings,
-            firing_contract_found=False,
-        )
+        # Check: is SKILL.md actually a directory with inner SKILL.md?
+        if skill_md.exists() and not skill_md.is_file():
+            inner = skill_md / "SKILL.md"
+            if inner.exists() and inner.is_file():
+                # SKILL.md-dir case: read the inner file instead
+                skill_md = inner
+                checks["skill_md_exists"] = True
+                checks["skill_md_is_directory"] = True
+            else:
+                errors.append(f"SKILL.md missing or is a directory — skipping skill")
+                return SkillTestResult(
+                    skill_name=name,
+                    skill_path=str(skill_dir),
+                    status="SKIP",
+                    checks=checks,
+                    errors=errors,
+                    warnings=warnings,
+                    firing_contract_found=False,
+                )
+        else:
+            errors.append(f"SKILL.md missing — skipping skill")
+            return SkillTestResult(
+                skill_name=name,
+                skill_path=str(skill_dir),
+                status="SKIP",
+                checks=checks,
+                errors=errors,
+                warnings=warnings,
+                firing_contract_found=False,
+            )
 
     # 2. Parse frontmatter
     try:
