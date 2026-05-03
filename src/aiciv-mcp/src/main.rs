@@ -5,13 +5,11 @@
 //! Simple stdio-based MCP server. Reads JSON-RPC-like requests from stdin,
 //! writes responses to stdout.
 
-use aiciv_mcp::{HengshiMcpServer, tools::{ToolCall, ToolCallResult}};
+use aiciv_mcp::{HengshiMcpServer, tools::ToolCall};
 use anyhow::Result;
 use serde_json::Value;
-use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::io::{AsyncWriteExt, Stdout};
+use tokio::io::{AsyncBufReadExt, BufReader, AsyncWriteExt};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -60,11 +58,21 @@ async fn main() -> Result<()> {
         let result = server.execute_tool(call).await;
 
         let resp = match result {
-            Ok(r) => serde_json::json!({
-                "jsonrpc": "2.0",
-                "result": r.result,
-                "id": id
-            }),
+            Ok(r) => {
+                if let Some(err) = r.error {
+                    serde_json::json!({
+                        "jsonrpc": "2.0",
+                        "error": err,
+                        "id": id
+                    })
+                } else {
+                    serde_json::json!({
+                        "jsonrpc": "2.0",
+                        "result": r.result,
+                        "id": id
+                    })
+                }
+            }
             Err(e) => serde_json::json!({
                 "jsonrpc": "2.0",
                 "error": e.to_string(),

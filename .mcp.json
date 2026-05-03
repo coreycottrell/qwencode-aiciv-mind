@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "hengshi": {
+      "command": "/home/corey/projects/AI-CIV/qwen-aiciv-mind/target/release/aiciv-mcp"
+    }
+  }
+}
