@@ -15,12 +15,8 @@ name = "aiciv_mcp"
 path = "src/lib.rs"
 
 [dependencies]
-# Internal crates
-codex-ipc = { workspace = true }
-aiciv-hooks = { workspace = true }
-
 # Async runtime
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["process"] }
 
 # Serialization
 serde = { workspace = true }

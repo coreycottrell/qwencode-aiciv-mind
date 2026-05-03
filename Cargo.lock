@@ -42,9 +42,7 @@ dependencies = [
 name = "aiciv-mcp"
 version = "0.1.0"
 dependencies = [
- "aiciv-hooks",
  "anyhow",
- "codex-ipc",
  "serde",
  "serde_json",
  "tokio",
