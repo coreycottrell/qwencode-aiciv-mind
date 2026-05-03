@@ -4,6 +4,8 @@
 import subprocess, sys, os, tempfile
 from pathlib import Path
 
+TRACKER_DIR = Path(__file__).resolve().parent
+
 def run(cmd, env=None):
     full_env = dict(os.environ)
     if env:
@@ -15,7 +17,7 @@ def test_session_lifecycle():
     """Test session_start -> ping -> session_end -> analyze."""
     # Start a session
     rc, out, err = run([
-        "python3", "skills/compute-hibernation-tracker/compute_hibernation_tracker.py",
+        "python3", str(TRACKER_DIR / "compute_hibernation_tracker.py"),
         "session_start", "--civ", "hengshi", "--session-id", "smoke-test-session"
     ])
     if rc != 0:
@@ -24,7 +26,7 @@ def test_session_lifecycle():
 
     # Ping active
     rc, out, err = run([
-        "python3", "skills/compute-hibernation-tracker/compute_hibernation_tracker.py",
+        "python3", str(TRACKER_DIR / "compute_hibernation_tracker.py"),
         "ping", "--active", "--civ", "hengshi"
     ])
     if rc != 0:
@@ -33,7 +35,7 @@ def test_session_lifecycle():
 
     # Ping idle
     rc, out, err = run([
-        "python3", "skills/compute-hibernation-tracker/compute_hibernation_tracker.py",
+        "python3", str(TRACKER_DIR / "compute_hibernation_tracker.py"),
         "ping", "--civ", "hengshi"
     ])
     if rc != 0:
@@ -42,7 +44,7 @@ def test_session_lifecycle():
 
     # End session
     rc, out, err = run([
-        "python3", "skills/compute-hibernation-tracker/compute_hibernation_tracker.py",
+        "python3", str(TRACKER_DIR / "compute_hibernation_tracker.py"),
         "session_end", "--civ", "hengshi"
     ])
     if rc != 0:
@@ -59,7 +61,7 @@ def test_session_lifecycle():
 def test_analyze():
     """Test analyze command with existing log."""
     rc, out, err = run([
-        "python3", "skills/compute-hibernation-tracker/compute_hibernation_tracker.py",
+        "python3", str(TRACKER_DIR / "compute_hibernation_tracker.py"),
         "analyze", "--civ", "hengshi"
     ])
     if rc != 0:
@@ -74,7 +76,7 @@ def test_analyze():
 def test_hibernate_candidates():
     """Test hibernate_candidates command."""
     rc, out, err = run([
-        "python3", "skills/compute-hibernation-tracker/compute_hibernation_tracker.py",
+        "python3", str(TRACKER_DIR / "compute_hibernation_tracker.py"),
         "hibernate_candidates", "--civ", "hengshi"
     ])
     if rc != 0:

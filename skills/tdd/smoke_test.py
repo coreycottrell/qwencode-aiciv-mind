@@ -2,13 +2,16 @@
 """Smoke test for tdd skill."""
 
 import subprocess, sys
+from pathlib import Path
+
+TD_DIR = Path(__file__).resolve().parent
 
 def run(cmd):
     r = subprocess.run(cmd, capture_output=True, text=True)
     return r.returncode, r.stdout, r.stderr
 
 def test_tdd_cycle():
-    rc, out, err = run(["python3", "skills/tdd/test_tdd_cycle.py"])
+    rc, out, err = run(["python3", str(TD_DIR / "test_tdd_cycle.py")])
     if rc != 0:
         print(f"FAIL: tdd cycle exited {rc}: {err}")
         return False
