@@ -2,7 +2,7 @@
 name: aiciv-mcp
 description: MCP server for Hengshi AI-CIV mind — exposes 6 tools via stdio JSON-RPC transport
 version: 1.0.0
-validator: Proof (external validator — tests locally pass, awaiting Proof verdict)
+validator: Proof (PASS — e2e verified)
 ---
 
 # aiciv-mcp Firing Contract
