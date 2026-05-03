@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Smoke test for session-summarizer."""
 
-import subprocess
-import sys
+import subprocess, sys
 from pathlib import Path
+
+SUMMARIZER_DIR = Path(__file__).resolve().parent
 
 def run(cmd):
     r = subprocess.run(cmd, capture_output=True, text=True)
@@ -11,7 +12,7 @@ def run(cmd):
 
 def test_snapshot():
     rc, out, err = run([
-        "python3", "skills/session-summarizer/session_summarizer.py",
+        "python3", str(SUMMARIZER_DIR / "session_summarizer.py"),
         "snapshot",
         "--session-id", "test-session-001",
         "--civ", "hengshi",
@@ -32,7 +33,7 @@ def test_snapshot():
 
 def test_analyze():
     rc, out, err = run([
-        "python3", "skills/session-summarizer/session_summarizer.py",
+        "python3", str(SUMMARIZER_DIR / "session_summarizer.py"),
         "analyze",
         "--log", "/tmp/ss-smoke.jsonl",
     ])
