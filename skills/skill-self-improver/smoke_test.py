@@ -4,6 +4,9 @@
 import subprocess, sys, os, tempfile
 from pathlib import Path
 
+SELF_IMPROVER_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SELF_IMPROVER_DIR.parent.parent
+
 def run(cmd, env=None):
     full_env = dict(os.environ)
     if env:
@@ -14,8 +17,8 @@ def run(cmd, env=None):
 def test_rubric_score():
     """Test rubric-score on skill-curator (a known skill on this system)."""
     rc, out, err = run([
-        "python3", "skills/skill-self-improver/skill_self_improver.py",
-        "rubric-score", "skills/skill-curator"
+        "python3", str(SELF_IMPROVER_DIR / "skill_self_improver.py"),
+        "rubric-score", str(REPO_ROOT / "skills" / "skill-curator")
     ])
     if rc != 0:
         print(f"FAIL: rubric-score exited {rc}: {err}")
@@ -30,9 +33,9 @@ def test_improve():
     """Test improve command on curator grade log (limit 3)."""
     with tempfile.TemporaryDirectory() as tmpdir:
         rc, out, err = run([
-            "python3", "skills/skill-self-improver/skill_self_improver.py",
+            "python3", str(SELF_IMPROVER_DIR / "skill_self_improver.py"),
             "improve",
-            "--log", "memories/skill-curator-grades-ACG-v02.jsonl",
+            "--log", str(REPO_ROOT / "memories" / "skill-curator-grades-ACG-v02.jsonl"),
             "--output", tmpdir,
             "--limit", "3",
         ])
@@ -63,9 +66,9 @@ def test_improve():
 def test_suggest():
     """Test suggest command."""
     rc, out, err = run([
-        "python3", "skills/skill-self-improver/skill_self_improver.py",
+        "python3", str(SELF_IMPROVER_DIR / "skill_self_improver.py"),
         "suggest",
-        "--log", "memories/skill-curator-grades-ACG-v02.jsonl",
+        "--log", str(REPO_ROOT / "memories" / "skill-curator-grades-ACG-v02.jsonl"),
         "--limit", "5",
     ])
     if rc != 0:
