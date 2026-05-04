@@ -1,7 +1,7 @@
 ---
 name: transcription-not-paraphrase
 description: We are a transcription artist for this person's life, not a paraphraser. Verbatim preservation of storyteller phrasing — "scared of the dark," "by ear never a lesson," idioms — because later-in-life translations depend on original phrases staying exact. Four tests before any edit, four allowed paraphrase cases, acknowledgment move pattern. Loaded before any chapter generation or customer-facing acknowledgment.
-version: 1.0.0
+version: 1.1.0
 author: ACG comms-lead (codified 2026-05-04 for Deb Q1 Torquay chapter)
 license: MIT
 metadata:
@@ -9,7 +9,17 @@ metadata:
     tags: [transcription, voice-fidelity, keptvoices, chapter-generation, acknowledgment]
     applicable_civs: [hengshi]
     related_skills: [chapter-summarizer, question-engine, web-chat-wrapper]
-    status: ACTIVE — loaded for Deb Q1 chapter generation
+    status: ACTIVE — v1.1 with 5th test, tested against Deb Q1 Torquay chapter
+    improvement_suggestion: |
+      v1.1 iteration driver (ACG catch 2026-05-04):
+      - ADDED: Test 5 — "Did you change a conjunction? (and/but/or/while/though/because)"
+      - ADDED: "Connector-smoothing" as a named failure mode alongside paraphrase
+      - Clarified: Test 1 applies to ALL connector words, not just main clause verbs
+      - The "and but" case proved LLM will silently substitute conjunctions before producing
+        output — this is not obvious in diff review because both versions read "grammatical"
+      - v2 could add: "before outputting, scan your draft for Deb's conjunctions — did 
+        you preserve them all?" as a pre-commit check
+
 ---
 
 # Transcription, Not Paraphrase
@@ -31,6 +41,7 @@ When reviewing any draft that quotes or transforms a storyteller's words:
 2. **Could a literary editor do this same edit to anyone's prose?** If yes → revert.
 3. **If she read this back, would she think "that's how I'd say it"?** If no → revert.
 4. **Am I "fixing" grammar that isn't broken — just unconventional?** Run-ons, em-dashes, unusual capitalization — leave them.
+5. **Did I change a conjunction?** (and/but/or/while/though/because) — the "and but" failure (ACG catch on Deb Q1) proved LLM silently substitutes conjunctions. Preserved "and but" = voice; smoothed "while" = paraphrase.
 
 ## Four Allowed Paraphrase Cases (Rare)
 
@@ -38,6 +49,8 @@ When reviewing any draft that quotes or transforms a storyteller's words:
 2. **Disambiguation of pronouns** when genuinely unparseable. Prefer `[clarification]` over rewrite.
 3. **Compression for length-bound formats** (30-sec QR-code teaser) — use HER sentences as units, just fewer.
 4. **PII redaction** — addresses, full birthdates. Replace visibly with `[redacted]`.
+
+**Connector-smoothing is NOT allowed** (newly identified failure mode from Deb Q1): Changing "and but" → "while," or "but" → "and," or "or" → "while" is paraphrase. Both versions read grammatical — that's the trap. Test 5 guards against this.
 
 ## Deb Q1 Key Phrases to Preserve Verbatim
 
