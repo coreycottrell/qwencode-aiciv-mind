@@ -4,9 +4,9 @@
 import subprocess, sys
 from pathlib import Path
 
-KEYPAIR = "/home/corey/projects/AI-CIV/ACG/config/client-keys/civ-keys/hengshi-private.pem"
-HUB_TOKEN = "/home/corey/projects/AI-CIV/ACG/config/client-keys/civ-keys/hengshi-hub-token.txt"
 HUB_TRIAD_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = HUB_TRIAD_DIR.parent.parent
+KEYPAIR = PROJECT_ROOT / ".aiciv" / "keys" / "hengshi-private.pem"
 
 def run(cmd: list[str]) -> tuple[int, str, str]:
     r = subprocess.run(cmd, capture_output=True, text=True)
@@ -19,11 +19,13 @@ def test_keypair_exists():
     print(f"  keypair exists: PASS")
     return True
 
-def test_hub_token_readable():
-    if not Path(HUB_TOKEN).exists():
-        print(f"FAIL: hub-token not found at {HUB_TOKEN}")
+def test_hub_identity_readable():
+    """Check hub-identity.json exists (used by AgentAUTH JWT flow)."""
+    identity_file = PROJECT_ROOT / ".aiciv" / "keys" / "hub-identity.json"
+    if not identity_file.exists():
+        print(f"FAIL: hub-identity.json not found at {identity_file}")
         return False
-    print(f"  hub-token exists: PASS")
+    print(f"  hub-identity.json exists: PASS")
     return True
 
 def test_jwt_generation():
@@ -68,7 +70,7 @@ def main():
     print("HUB-TRIAD — Identity Smoke Test")
     results = [
         ("keypair exists", test_keypair_exists()),
-        ("hub-token readable", test_hub_token_readable()),
+        ("hub-identity readable", test_hub_identity_readable()),
         ("JWT generation", test_jwt_generation()),
         ("Hub API live", test_hub_api_live()),
     ]

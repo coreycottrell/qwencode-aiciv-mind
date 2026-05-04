@@ -28,15 +28,93 @@ logger = logging.getLogger(__name__)
 # Configuration
 # ───────────────────────────────────────────────────────────────────
 
-SUMMARIZATION_MODEL = os.getenv("SUMMARIZATION_MODEL", "devstral-small-2:24b")
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "https://api.ollama.com")
-OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY", "")
+LLM_BACKEND = os.getenv("LLM_BACKEND", "ollama")  # "ollama" | "minimax"
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "devstral-small-2:24b")
+MINIMAX_API_KEY = os.getenv("MINIMAX_API_KEY", "")
+MINIMAX_BASE_URL = os.getenv("MINIMAX_BASE_URL", "https://api.minimax.io/anthropic")
+MINIMAX_MODEL = os.getenv("MINIMAX_MODEL", "MiniMax-M2.7")
 MAX_SUMMARY_TOKENS = int(os.getenv("MAX_SUMMARY_TOKENS", "2048"))
 MAX_SESSION_CHARS = int(os.getenv("MAX_SESSION_CHARS", "100000"))
 SUMMARY_CACHE_ENABLED = os.getenv("SUMMARY_CACHE_ENABLED", "true").lower() == "true"
 SCRATCHPAD_DIR = Path(os.getenv("SCRATCHPAD_DIR", "/home/corey/projects/AI-CIV/qwen-aiciv-mind/scratchpads"))
 MEMORY_DIR = Path(os.getenv("MEMORY_DIR", "/home/corey/projects/AI-CIV/qwen-aiciv-mind/minds"))
 CACHE_FILE = SCRATCHPAD_DIR / "_summary_cache.jsonl"
+
+
+# ───────────────────────────────────────────────────────────────────
+# LLM Backend — Ollama or MiniMax M2.7
+# ───────────────────────────────────────────────────────────────────
+
+def _llm_complete(prompt: str, max_tokens: int = 2048) -> str:
+    """Call LLM. Backend determined by LLM_BACKEND env var."""
+    if LLM_BACKEND == "minimax":
+        # MiniMax-M2.7 thinking model needs extra room for the thinking block
+        # before emitting text. Floor at 2000.
+        return _minimax_complete(prompt, max(max_tokens, 2000))
+    else:
+        return _ollama_complete(prompt, max_tokens)
+
+
+def _ollama_complete(prompt: str, max_tokens: int = 2048) -> str:
+    """Call local Ollama /api/generate."""
+    import urllib.request
+    import urllib.error
+
+    payload = {
+        "model": OLLAMA_MODEL,
+        "prompt": prompt,
+        "stream": False,
+    }
+    data = json.dumps(payload).encode()
+    try:
+        req = urllib.request.Request(
+            f"{OLLAMA_URL}/api/generate",
+            data=data,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            result = json.loads(resp.read())
+        return result.get("response", "{}")
+    except (urllib.error.URLError, json.JSONDecodeError) as e:
+        raise SessionSummarizationError(f"Ollama call failed: {e}")
+
+
+def _minimax_complete(prompt: str, max_tokens: int = 2048) -> str:
+    """Call MiniMax M2.7 via Anthropic-compatible API."""
+    import urllib.request
+    import urllib.error
+
+    if not MINIMAX_API_KEY:
+        raise SessionSummarizationError("MINIMAX_API_KEY not set (LLM_BACKEND=minimax)")
+
+    payload = {
+        "model": MINIMAX_MODEL,
+        "max_tokens": max_tokens,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    data = json.dumps(payload).encode()
+    headers = {
+        "Content-Type": "application/json",
+        "x-api-key": MINIMAX_API_KEY,
+        "anthropic-version": "2023-06-01",
+    }
+    try:
+        req = urllib.request.Request(
+            f"{MINIMAX_BASE_URL}/v1/messages",
+            data=data,
+            headers=headers,
+        )
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            result = json.loads(resp.read())
+        content = result.get("content", [{}])
+        if content and isinstance(content, list):
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    return block.get("text", "{}")
+        return "{}"
+    except (urllib.error.URLError, json.JSONDecodeError) as e:
+        raise SessionSummarizationError(f"MiniMax call failed: {e}")
 
 
 # ───────────────────────────────────────────────────────────────────
@@ -228,30 +306,10 @@ SESSION:
 
 SUMMARY:"""
 
-    payload = {
-        "model": SUMMARIZATION_MODEL,
-        "messages": [
-            {"role": "user", "content": prompt}
-        ],
-        "stream": False,
-    }
-
-    data = json.dumps(payload).encode()
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {OLLAMA_API_KEY}" if OLLAMA_API_KEY else "",
-        "User-Agent": "Mozilla/5.0 (compatible; AiCIV-Mind/1.0; +https://ai-civ.com)",
-    }
-
     try:
-        req = urllib.request.Request(
-            f"{OLLAMA_BASE_URL}/api/chat",
-            data=data,
-            headers=headers,
-        )
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            result = json.loads(resp.read())
-        summary = result.get("message", {}).get("content", "[No summary returned]")
+        summary = _llm_complete(prompt, MAX_SUMMARY_TOKENS)
+        if not summary or summary == "{}":
+            summary = "[No summary returned]"
 
         # ── Token budget enforcement ──────────────────────────────────
         # Use word count as rough token proxy (words ≈ tokens for English prose).
@@ -272,9 +330,9 @@ SUMMARY:"""
         # ── End enforcement ───────────────────────────────────────────
 
         return summary
-    except (urllib.error.URLError, json.JSONDecodeError, KeyError) as e:
+    except SessionSummarizationError as e:
         logger.error("LLM summarization failed: %s", e)
-        raise SessionSummarizationError(f"LLM call failed: {e}")
+        raise
 
 
 # ───────────────────────────────────────────────────────────────────
@@ -296,9 +354,9 @@ def summarize_sessions(query: str, mind_id: str = "hengshi", limit: int = 3) -> 
         SessionSummarizationError: If API key missing or LLM call fails
     """
     # Check preconditions
-    if not OLLAMA_API_KEY and not os.getenv("OPENAI_API_KEY"):
+    if LLM_BACKEND == "minimax" and not MINIMAX_API_KEY:
         raise SessionSummarizationError(
-            "No LLM API key set. Set OLLAMA_API_KEY or OPENAI_API_KEY."
+            "MINIMAX_API_KEY not set (LLM_BACKEND=minimax)."
         )
 
     if not SCRATCHPAD_DIR.exists():
@@ -363,28 +421,52 @@ def summarize_sessions(query: str, mind_id: str = "hengshi", limit: int = 3) -> 
 # ───────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    import sys
+    import sys, argparse
 
-    if len(sys.argv) < 2:
-        print("Usage: python summarize.py <query> [mind_id] [limit]")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Session Summarization — LLM-summarize relevant past sessions")
+    parser.add_argument("query", help="Search query to find relevant sessions")
+    parser.add_argument("mind_id", nargs="?", default="hengshi", help="Mind ID (default: hengshi)")
+    parser.add_argument("limit", nargs="?", type=int, default=3, help="Max sessions to summarize (default: 3)")
+    parser.add_argument("--log-to-tracker", action="store_true", help="Log run to skill-evolution-tracker")
+    args = parser.parse_args()
 
-    q = sys.argv[1]
-    mid = sys.argv[2] if len(sys.argv) > 2 else "hengshi"
-    lim = int(sys.argv[3]) if len(sys.argv) > 3 else 3
-
-    print(f"Searching scratchpads for: {q}")
-    print(f"Mind: {mid}, Limit: {lim}")
+    print(f"Searching scratchpads for: {args.query}")
+    print(f"Mind: {args.mind_id}, Limit: {args.limit}")
     print()
 
+    outcome = "fail"
+    result_count = 0
     try:
-        results = summarize_sessions(q, mind_id=mid, limit=lim)
+        results = summarize_sessions(args.query, mind_id=args.mind_id, limit=args.limit)
         if not results:
             print("No relevant sessions found.")
-        for r in results:
-            print(f"=== [{r.session_id}] (relevance: {r.relevance_score:.2f}) ===")
-            print(r.summary)
-            print()
+        else:
+            for r in results:
+                print(f"=== [{r.session_id}] (relevance: {r.relevance_score:.2f}) ===")
+                print(r.summary)
+                print()
+            result_count = len(results)
+        outcome = "pass"
     except SessionSummarizationError as e:
         print(f"ERROR: {e}", file=sys.stderr)
+
+    # Log to skill-evolution-tracker if requested
+    if args.log_to_tracker:
+        try:
+            tracker_path = Path(__file__).parent.parent / "skill-evolution-tracker" / "skill_evolution_tracker.py"
+            context = f"query={args.query} mind={args.mind_id} results={result_count}"
+            import subprocess as _sub
+            result = _sub.run(
+                [sys.executable, str(tracker_path), "log", "session-summarization",
+                 "--context", context, "--outcome", outcome],
+                capture_output=True, text=True, timeout=15
+            )
+            if result.returncode == 0:
+                print(f"[skill-evolution-tracker: logged session-summarization ({outcome})]")
+            else:
+                print(f"[skill-evolution-tracker: log failed — {result.stderr.strip()}]")
+        except Exception as e:
+            print(f"[skill-evolution-tracker: could not log — {e}]")
+
+    if outcome == "fail":
         sys.exit(1)

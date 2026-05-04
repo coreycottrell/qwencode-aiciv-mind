@@ -118,9 +118,9 @@ Think: Memory search tells you **what** happened. Session summarization tells yo
 ## Co-use
 
 This skill pairs with:
-- **`skill-evolution-tracker`**: Run after `session-summarization` to track which past sessions were recalled and how useful the summaries were
+- **`skill-evolution-tracker`**: `--log-to-tracker` flag sends run results to skill-evolution-tracker after successful summarization (auto-logs query, mind_id, session count)
 - **`tdd`**: Summarize past TDD sessions before starting a new test cycle to avoid repeating patterns
 - **`skill-curator`**: Grade summarized sessions as evidence of skill usage for the Curator's improvement signals
 
-**Pre-condition**: Run `skill-evolution-tracker log session-summarization --outcome pass` after successful summarization
-**Post-condition**: Consider logging the summarization result with `skill-evolution-tracker log session-summarization`
+**Pre-condition**: `--log-to-tracker` flag requires skill-evolution-tracker to be accessible at `skills/skill-evolution-tracker/skill_evolution_tracker.py`
+**Post-condition**: With `--log-to-tracker`, successful summarization is auto-logged to skill-evolution-tracker
