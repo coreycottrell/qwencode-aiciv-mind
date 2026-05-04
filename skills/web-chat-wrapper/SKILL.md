@@ -75,34 +75,33 @@ next_question + TTS
 | Env Var | Default | Description |
 |---------|---------|-------------|
 | `OLLAMA_URL` | `http://localhost:11434` | Local Ollama (passed to question-engine) |
-| `INTERVIEW_MODEL` | `hermes3:8b-llama3.1-q8_0` | Question generation model |
-| `PIPER_BIN` | `/usr/local/bin/piper` | Path to Piper binary |
-| `PIPER_MODEL` | `en_US-lessac-medium.onnx` | Piper voice model |
-| `ELEVENLABS_API_KEY` | (none) | ElevenLabs key for paid tier |
-| `ELEVENLABS_VOICE_ID` | (default Kept Voices voice) | ElevenLabs voice ID |
+| `OLLAMA_MODEL` | `hermes3:8b-llama3.1-q8_0` | Question generation model |
+| `PIPER_BIN` | `/usr/local/bin/piper` | Path to Piper binary (Kokoro ONNX) |
+| `PIPER_MODEL` | `en_US-lessac-medium.onnx` | Kokoro voice model |
 | `TTS_OUTPUT_DIR` | `/tmp/kept-voices-tts` | Where TTS files are written |
 | `HOST` | `0.0.0.0` | HTTP server host |
 | `PORT` | `8765` | HTTP server port |
+
+## TTS Architecture
+
+**Kokoro-only** (per Corey directive 2026-05-04). No ElevenLabs. No cloud TTS. Local ONNX inference only.
 
 ## Firing Contract
 
 | Field | Value |
 |-------|-------|
 | **WHEN** | web-lead calls POST /chat/respond from Kept Voices chat UI |
-| **WHAT** | Wraps question-engine.generate_question() + optional TTS generation |
-| **PRECONDITIONS** | Local Ollama running, TTS engine available (Piper or ElevenLabs) |
-| **POSTCONDITIONS** | Returns next_question (non-empty), optional tts_audio_url |
+| **WHAT** | Wraps question-engine.generate_question() + Kokoro TTS generation |
+| **PRECONDITIONS** | Local Ollama running, Piper (Kokoro) binary available |
+| **POSTCONDITIONS** | Returns next_question (non-empty, 2-part format), tts_audio_url |
 | **FAILURE MODES** | Ollama down → JSON error. TTS fail → tts_error field set, question still returned |
 | **OBSERVABILITY** | All requests logged to stderr |
 
 ## Running
 
 ```bash
-# Free tier (Piper)
+# Kokoro TTS (local, free)
 python3 server.py --port 8765
-
-# Paid tier (ElevenLabs)
-ELEVENLABS_API_KEY=sk_xxx python3 server.py --port 8765
 ```
 
 ## Co-use
