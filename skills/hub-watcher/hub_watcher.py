@@ -21,9 +21,30 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Add hub-triad for JWT auth
-sys.path.insert(0, str(Path(__file__).parent.parent / "hub-triad"))
-from triad_client import get_jwt, get_group_id, get_rooms, auth_headers, CIV_ID, KEYPAIR_FILE, HUB_URL, EVENTS_URL
+# Add hub-triad for JWT auth (saturation client for hengshin's identity)
+sys.path.insert(0, "/home/corey/projects/AI-CIV/qwen-aiciv-mind/skills/hub-triad")
+from triad_client_saturation import (
+    get_jwt as _get_jwt, auth_headers, get_group_id as _get_group_id,
+    get_rooms as _get_rooms, CIV_ID as DEFAULT_CIV_ID, HUB_URL, EVENTS_URL,
+    HENGSHI_KEYPAIR,
+)
+
+# Default CIV_ID for commands that don't need per-civ auth
+CIV_ID = os.getenv("TRIAD_CIV_ID", DEFAULT_CIV_ID)
+KEYPAIR_FILE = os.getenv("TRIAD_KEYPAIR_FILE", HENGSHI_KEYPAIR)
+
+
+def get_jwt_for_civ(civ_id: str, keypair: str) -> str:
+    """Get JWT for a specific civ_id/keypair combination."""
+    return _get_jwt(civ_id, keypair)
+
+
+def get_group_id(jwt: str, slug: str) -> str | None:
+    return _get_group_id(jwt, slug)
+
+
+def get_rooms(jwt: str, group_id: str) -> dict:
+    return _get_rooms(jwt, group_id)
 
 import urllib.request
 import urllib.error
@@ -49,7 +70,7 @@ class ActorEvent:
 
 def poll_pending_events(limit: int = 10) -> list[dict]:
     """Poll AgentEvents for pending events directed to this actor."""
-    jwt = get_jwt(CIV_ID, KEYPAIR_FILE)
+    jwt = get_jwt_for_civ(CIV_ID, KEYPAIR_FILE)
     headers = auth_headers(jwt)
 
     req = urllib.request.Request(
@@ -66,7 +87,7 @@ def poll_pending_events(limit: int = 10) -> list[dict]:
 
 def get_room_activity(room_id: str, limit: int = 10) -> list[dict]:
     """Get recent activity in a specific room via Hub API."""
-    jwt = get_jwt(CIV_ID, KEYPAIR_FILE)
+    jwt = get_jwt_for_civ(CIV_ID, KEYPAIR_FILE)
     headers = auth_headers(jwt)
 
     # Hub v1: rooms/{room_id}/activity or similar
@@ -84,7 +105,7 @@ def get_room_activity(room_id: str, limit: int = 10) -> list[dict]:
 
 def get_actor_info(actor_id: str) -> dict | None:
     """Get actor metadata from Hub."""
-    jwt = get_jwt(CIV_ID, KEYPAIR_FILE)
+    jwt = get_jwt_for_civ(CIV_ID, KEYPAIR_FILE)
     headers = auth_headers(jwt)
 
     req = urllib.request.Request(
@@ -111,7 +132,7 @@ def watch_room(room_id: str, interval: int = 30, duration: int = 300, log_to_tra
         duration: Total watch duration in seconds (default 300 = 5 min)
         log_to_tracker: If True, log watch completion to skill-evolution-tracker
     """
-    jwt = get_jwt(CIV_ID, KEYPAIR_FILE)
+    jwt = get_jwt_for_civ(CIV_ID, KEYPAIR_FILE)
     headers = auth_headers(jwt)
     last_seen = None
     poll_count = 0
@@ -195,7 +216,7 @@ def cmd_check_events(args):
 
 def cmd_list_rooms(args):
     """List rooms in a group."""
-    jwt = get_jwt(CIV_ID, KEYPAIR_FILE)
+    jwt = get_jwt_for_civ(CIV_ID, KEYPAIR_FILE)
     group_id = get_group_id(jwt, args.group)
     if not group_id:
         print(f"Group not found: {args.group}")
