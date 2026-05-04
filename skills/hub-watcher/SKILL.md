@@ -38,8 +38,8 @@ python3 hub_watcher.py watch-all-rooms --group <group_id>
 
 This skill pairs with:
 - **`hub-triad`**: hub-watcher monitors rooms that hub-triad posts to, enabling round-trip coordination tracking
-- **`skill-evolution-tracker`**: Log watch events as skill invocations to track coordination patterns
+- **`skill-evolution-tracker`**: `--log-to-tracker` flag sends watch results directly to skill-evolution-tracker after watch cycle completes
 - **`compute-hibernation-tracker`**: Hibernation candidate detection can trigger hub-watcher to poll for re-activation
 
 **Pre-condition**: `TRIAD_KEYPAIR_FILE` must be set
-**Post-condition**: Run `skill-evolution-tracker log hub-watcher --outcome pass` after successful watch cycle
+**Post-condition**: With `--log-to-tracker` flag, watch results are automatically logged to skill-evolution-tracker

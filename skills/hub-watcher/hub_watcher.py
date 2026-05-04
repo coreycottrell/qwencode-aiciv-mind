@@ -102,17 +102,20 @@ def get_actor_info(actor_id: str) -> dict | None:
 # Watcher Loop
 # ───────────────────────────────────────────────────────────────────
 
-def watch_room(room_id: str, interval: int = 30, duration: int = 300):
+def watch_room(room_id: str, interval: int = 30, duration: int = 300, log_to_tracker: bool = False):
     """Watch a room for new messages on a polling interval.
 
     Args:
         room_id: Hub room UUID
         interval: Seconds between polls (default 30)
         duration: Total watch duration in seconds (default 300 = 5 min)
+        log_to_tracker: If True, log watch completion to skill-evolution-tracker
     """
     jwt = get_jwt(CIV_ID, KEYPAIR_FILE)
     headers = auth_headers(jwt)
     last_seen = None
+    poll_count = 0
+    messages_detected = 0
 
     end_time = time.time() + duration
 
@@ -120,6 +123,7 @@ def watch_room(room_id: str, interval: int = 30, duration: int = 300):
     print(f"Started: {datetime.now(timezone.utc).isoformat()}")
 
     while time.time() < end_time:
+        poll_count += 1
         try:
             req = urllib.request.Request(
                 f"{HUB_URL}/api/v1/rooms/{room_id}/messages?limit=5",
@@ -137,6 +141,7 @@ def watch_room(room_id: str, interval: int = 30, duration: int = 300):
                     new_messages.append(msg)
 
             if new_messages:
+                messages_detected += len(new_messages)
                 print(f"\n[{datetime.now(timezone.utc).isoformat()}] New messages:")
                 for msg in new_messages:
                     actor = msg.get("actor_id", msg.get("author", "unknown"))
@@ -152,6 +157,25 @@ def watch_room(room_id: str, interval: int = 30, duration: int = 300):
         time.sleep(interval)
 
     print(f"\nWatch loop ended. Last seen: {last_seen}")
+    print(f"Polls: {poll_count}, Messages detected: {messages_detected}")
+
+    # Log to skill-evolution-tracker if requested
+    if log_to_tracker:
+        try:
+            tracker_path = Path(__file__).parent.parent / "skill-evolution-tracker" / "skill_evolution_tracker.py"
+            context = f"room={room_id} polls={poll_count} msgs={messages_detected}"
+            import subprocess
+            result = subprocess.run(
+                [sys.executable, str(tracker_path), "log", "hub-watcher",
+                 "--context", context, "--outcome", "pass"],
+                capture_output=True, text=True, timeout=15
+            )
+            if result.returncode == 0:
+                print(f"Logged to skill-evolution-tracker: hub-watcher ({result.stdout.strip()})")
+            else:
+                print(f"skill-evolution-tracker log failed: {result.stderr.strip()}")
+        except Exception as e:
+            print(f"Could not log to skill-evolution-tracker: {e}")
 
 
 # ───────────────────────────────────────────────────────────────────
@@ -198,7 +222,7 @@ def cmd_room_activity(args):
 
 def cmd_watch(args):
     """Watch a room continuously."""
-    watch_room(args.room, interval=args.interval, duration=args.duration)
+    watch_room(args.room, interval=args.interval, duration=args.duration, log_to_tracker=args.log_to_tracker)
 
 
 if __name__ == "__main__":
@@ -220,6 +244,7 @@ if __name__ == "__main__":
     watch.add_argument("--room", required=True, help="Room ID")
     watch.add_argument("--interval", type=int, default=30, help="Poll interval seconds")
     watch.add_argument("--duration", type=int, default=300, help="Total watch duration seconds")
+    watch.add_argument("--log-to-tracker", action="store_true", help="Log watch completion to skill-evolution-tracker")
 
     args = parser.parse_args()
 
