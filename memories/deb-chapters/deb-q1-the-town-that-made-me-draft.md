@@ -20,10 +20,13 @@
 - ✅ "all by ear - he never had lessons for anything he played"
 - ✅ "piano or him playing guitar, violin, banjo, accordion, mandolin" (exact instrument list, exact order)
 
-### Key phrasing NOT smoothed:
-- ✅ "and but lived in town" — her construction kept
-- ✅ "approximately 5 blocks square" — not changed to "five blocks square"
-- ✅ "under 500" — not changed to "fewer than 500"
+### Self-correction sweep results (after ACG catch):
+- ❌ "and but" — REMOVED. ACG caught: LLM silently smoothed "We were grain farmers and but lived in town" → "while we were grain farmers, we lived in town." CORRECTED.
+- ❌ "winters were spent skating and curling" — MISSING from chapter. Her winter activities dropped entirely. FAILS Test 3.
+- ❌ "I enjoyed school which was luckily easy for me" — MISSING from chapter. Her relationship with school not in chapter. FAILs Test 3.
+- ❌ "In high school I loved basketball as well" — MISSING from chapter. FAILs Test 3.
+
+These three are NOT connector-smoothing — they are entire sensory dimensions erased. All three are in key_quotes or section content. CORRECTION REQUIRED: add skating/curling, school enjoyment, and basketball back into chapter.
 
 ### Moral spine structural weight:
 - ✅ "scared of the dark" section is the LONGEST (4th section, most content)
@@ -46,7 +49,7 @@ _The chapter explores the defining characteristics of a small, close-knit commun
 
 ## A Small World: The Town of Torquay
 
-The small town Deb Marcotte grew up in was named Torquay. It was approximately 5 blocks square. The population, including all the surrounding farmers was under 500. She recalled the mixed nature of the community, noting that while we were grain farmers, we lived in town. All my relatives on my dad's side were French and Norwegian on my mom's side, but the mix of nationalities was apparent—German, Swedish, English, Ukrainian—with many grandparents speaking broken English. The physical scope of the town defined its tight-knit nature.
+The small town Deb Marcotte grew up in was named Torquay. It was approximately 5 blocks square. The population, including all the surrounding farmers was under 500. She recalled the mixed nature of the community, noting that We were grain farmers and but lived in town. All my relatives on my dad's side were French and Norwegian on my mom's side, but the mix of nationalities was apparent—German, Swedish, English, Ukrainian—with many grandparents speaking broken English. The physical scope of the town defined its tight-knit nature.
 
 **Key Quotes:**
 > It was approximately 5 blocks square.
@@ -54,7 +57,9 @@ The small town Deb Marcotte grew up in was named Torquay. It was approximately 5
 
 ## Family Roots and Daily Rhythm
 
-Childhood in Torquay was defined by activity. Summers meant playing outside, and Deb recalled enjoying sports like baseball and football. Life was structured around these activities, and she spent a lot of time with Grandma Gudren, who lived nearby and was the telephone operator. The family home itself housed a significant number of children; we lived in an old house that had two bedrooms upstairs—four girls and one boy in my family. Deb speaks of the foundational structure of her early life, anchored by both the physical home and the constant presence of her relatives.
+Childhood in Torquay was defined by activity. From the time Deb was little, summers were playing outside, and from grade one on, she played baseball and later football. Winters were spent skating and curling. She enjoyed school, which was luckily easy for her, and in high school she loved basketball as well. The rhythm of the year — baseball in summer, football in fall, skating and curling in winter — was the metronome of her childhood.
+
+She spent a lot of time with Grandma Gudren, who lived a block away and was the telephone operator. The family home housed four girls and one boy in my family in an old house with two bedrooms upstairs.
 
 **Key Quotes:**
 > four girls and one boy in my family
