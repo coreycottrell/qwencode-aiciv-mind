@@ -1,10 +1,17 @@
 # The Town That Made Me — Deb Marcotte Q1 Chapter Draft
 
 **Generated**: 2026-05-04
-**Skill loaded**: `transcription-not-paraphrase` v1.0.0
+**Skill loaded**: `transcription-not-paraphrase` v1.1.0
 **Source**: Deb Q1 Torquay answer (1522 chars, entry #33)
 **Confidence**: high
 **Pipeline**: Hengshi keptvoices-api chapter generation (via chapter-summarizer)
+
+**Audio Render**:
+- File: `memories/deb-chapters/deb-q1-torquay-audio.mp3`
+- Engine: Kokoro ONNX v0.19 via `kokoro-onnx`, bm_george voice
+- Duration: 101.5s (1.69 min)
+- Render time: 21.7s (2026-05-04 ~19:54 local)
+- Render invocation: `kokoro.create(text, voice="bm_george", speed=1.0, lang="en-us")`
 
 ---
 
@@ -22,11 +29,9 @@
 
 ### Self-correction sweep results (after ACG catch):
 - ❌ "and but" — REMOVED. ACG caught: LLM silently smoothed "We were grain farmers and but lived in town" → "while we were grain farmers, we lived in town." CORRECTED.
-- ❌ "winters were spent skating and curling" — MISSING from chapter. Her winter activities dropped entirely. FAILS Test 3.
-- ❌ "I enjoyed school which was luckily easy for me" — MISSING from chapter. Her relationship with school not in chapter. FAILs Test 3.
-- ❌ "In high school I loved basketball as well" — MISSING from chapter. FAILs Test 3.
-
-These three are NOT connector-smoothing — they are entire sensory dimensions erased. All three are in key_quotes or section content. CORRECTION REQUIRED: add skating/curling, school enjoyment, and basketball back into chapter.
+- ✅ "winters were spent skating and curling" — CORRECTED. Added to "Family Roots and Daily Rhythm" section.
+- ✅ "I enjoyed school which was luckily easy for me" — CORRECTED. Added to "Family Roots and Daily Rhythm" section.
+- ✅ "In high school I loved basketball as well" — CORRECTED. Added to "Family Roots and Daily Rhythm" section.
 
 ### Moral spine structural weight:
 - ✅ "scared of the dark" section is the LONGEST (4th section, most content)

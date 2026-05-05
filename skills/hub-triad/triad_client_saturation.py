@@ -574,11 +574,32 @@ def cmd_join(caller_civ_id: str):
         print(f"Triad group '{GROUP_SLUG}' not found — someone must set it up first")
         return
 
+    # Use join endpoint first (get_rooms requires group membership)
+    headers = auth_headers(jwt)
+    try:
+        req = urllib.request.Request(
+            f"{HUB_URL}/api/v1/groups/{group_id}/join",
+            data=json.dumps({}).encode(),
+            headers=headers,
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            result = json.loads(resp.read())
+            logger.info("Join result: %s", result)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()
+        if e.code == 409:
+            logger.info("Already a member of group")
+        else:
+            raise RuntimeError(f"Join failed: {e.code} {body}")
+
     rooms = get_rooms(jwt, group_id)
     coord_room_id = rooms.get("coordination")
     if coord_room_id:
-        subscribe_to_room(jwt, coord_room_id, "thread.created")
-        subscribe_to_room(jwt, coord_room_id, "post.created")
+        try:
+            subscribe_to_room(jwt, coord_room_id, "thread.created")
+            subscribe_to_room(jwt, coord_room_id, "post.created")
+        except Exception as e:
+            logger.warning("AgentEvents subscription failed (non-fatal): %s", e)
 
     print(f"Joined saturation-triad as {caller_civ_id}:")
     print(f"  Group: {GROUP_SLUG} ({group_id})")
