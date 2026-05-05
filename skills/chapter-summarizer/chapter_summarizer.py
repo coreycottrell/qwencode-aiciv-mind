@@ -229,6 +229,37 @@ def _parse_markdown_qas(content: str) -> list[InterviewQA]:
 # Chapter Generation
 # ───────────────────────────────────────────────────────────────────
 
+def _assert_transcription_not_paraphrase():
+    """Pre-flight assertion: transcription-not-paraphrase v1.1+ must be loadable.
+
+    Raises:
+        ChapterSummarizerError: If skill is missing, version < v1.1, or missing Test 5
+    """
+    import logging
+    from pathlib import Path
+
+    logger = logging.getLogger(__name__)
+
+    skill_path = Path(__file__).parent.parent / "transcription-not-paraphrase" / "SKILL.md"
+    if not skill_path.exists():
+        raise ChapterSummarizerError(
+            "transcription-not-paraphrase SKILL.md not found — cannot generate chapter. "
+            "Load skills/transcription-not-paraphrase/SKILL.md v1.1+ before chapter generation."
+        )
+    content = skill_path.read_text()
+    if "v1.1" not in content:
+        raise ChapterSummarizerError(
+            "transcription-not-paraphrase must be v1.1+ (current version check failed). "
+            "Upgrade to v1.1 before chapter generation."
+        )
+    if "Test 5" not in content:
+        raise ChapterSummarizerError(
+            "transcription-not-paraphrase v1.1 requires Test 5 (connector-smoothing doctrine). "
+            "Missing Test 5 — cannot generate chapter."
+        )
+    logger.info("transcription-not-paraphrase v1.1.0 loaded — all 5 tests active")
+
+
 def generate_chapter(
     qa_pairs: list[InterviewQA],
     chapter_theme: str,
@@ -244,6 +275,11 @@ def generate_chapter(
     Returns:
         ChapterDraft with sections, key quotes, characters, timeline
     """
+    # ───────────────────────────────────────────────────────────────────
+    # PRE-FLIGHT: transcription-not-paraphrase v1.1 must be loaded
+    # ───────────────────────────────────────────────────────────────────
+    _assert_transcription_not_paraphrase()
+
     if not qa_pairs:
         raise ChapterSummarizerError("No Q&A pairs provided")
 
