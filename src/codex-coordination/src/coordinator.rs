@@ -189,7 +189,7 @@ mod tests {
         let coord = make_coordinator();
         let state = coord.state();
         assert_eq!(state.minds.len(), 1);
-        assert_eq!(state.minds[0].role, codex_roles::Role::Primary);
+        assert_eq!(*state.minds[0].role(), codex_roles::Role::Primary);
     }
 
     #[test]

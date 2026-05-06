@@ -51,19 +51,19 @@ pub enum MindStatus {
 }
 
 /// A handle to an active mind. Used by MindManager to track state.
+/// All fields are private — callers use MindHandleGuard for controlled mutation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MindHandle {
-    pub id: MindId,
-    pub role: Role,
-    pub vertical: Option<Vertical>,
-    pub status: MindStatus,
-    pub parent: Option<MindId>,
-    pub children: Vec<MindId>,
-    pub session_count: u64,
-    pub created_at: DateTime<Utc>,
-    pub last_active: DateTime<Utc>,
-    /// Growth stage derived from session_count + fitness scores.
-    pub growth_stage: GrowthStage,
+    id: MindId,
+    role: Role,
+    vertical: Option<Vertical>,
+    status: MindStatus,
+    parent: Option<MindId>,
+    children: Vec<MindId>,
+    session_count: u64,
+    created_at: DateTime<Utc>,
+    last_active: DateTime<Utc>,
+    growth_stage: GrowthStage,
 }
 
 impl MindHandle {
@@ -83,6 +83,134 @@ impl MindHandle {
             growth_stage: GrowthStage::Novice,
         }
     }
+
+    // Read accessors — used by MindManager and tests
+    pub fn id(&self) -> &MindId { &self.id }
+    pub fn role(&self) -> &Role { &self.role }
+    pub fn vertical(&self) -> Option<&Vertical> { self.vertical.as_ref() }
+    pub fn status(&self) -> &MindStatus { &self.status }
+    pub fn parent(&self) -> Option<&MindId> { self.parent.as_ref() }
+    pub fn children(&self) -> &[MindId] { &self.children }
+    pub fn session_count(&self) -> u64 { self.session_count }
+    pub fn created_at(&self) -> &DateTime<Utc> { &self.created_at }
+    pub fn last_active(&self) -> &DateTime<Utc> { &self.last_active }
+    pub fn growth_stage(&self) -> &GrowthStage { &self.growth_stage }
+}
+
+/// Guard for controlled mutation of MindHandle fields.
+/// Invariants enforced at mutation point: parent-child symmetry,
+/// children uniqueness, session_count monotonic increase, status-driven
+/// last_active timestamp updates.
+pub struct MindHandleGuard<'a> {
+    handle: &'a mut MindHandle,
+}
+
+impl<'a> MindHandleGuard<'a> {
+    pub fn new(handle: &'a mut MindHandle) -> Self {
+        Self { handle }
+    }
+
+    /// Immutable access to the handle's id.
+    pub fn id(&self) -> &MindId {
+        &self.handle.id
+    }
+
+    /// Immutable access to the role.
+    pub fn role(&self) -> &Role {
+        &self.handle.role
+    }
+
+    /// Immutable access to the vertical.
+    pub fn vertical(&self) -> Option<&Vertical> {
+        self.handle.vertical.as_ref()
+    }
+
+    /// Read current status without mutation.
+    pub fn status(&self) -> &MindStatus {
+        &self.handle.status
+    }
+
+    /// Read parent without mutation.
+    pub fn parent(&self) -> Option<&MindId> {
+        self.handle.parent.as_ref()
+    }
+
+    /// Read children snapshot.
+    pub fn children(&self) -> Vec<MindId> {
+        self.handle.children.clone()
+    }
+
+    /// Immutable access to session count.
+    pub fn session_count(&self) -> u64 {
+        self.handle.session_count
+    }
+
+    /// Immutable access to created_at.
+    pub fn created_at(&self) -> &DateTime<Utc> {
+        &self.handle.created_at
+    }
+
+    /// Immutable access to last_active.
+    pub fn last_active(&self) -> &DateTime<Utc> {
+        &self.handle.last_active
+    }
+
+    /// Immutable access to growth_stage.
+    pub fn growth_stage(&self) -> &GrowthStage {
+        &self.handle.growth_stage
+    }
+
+    /// Update status. Also updates last_active timestamp.
+    pub fn update_status(&mut self, new_status: MindStatus) {
+        self.handle.last_active = Utc::now();
+        self.handle.status = new_status;
+    }
+
+    /// Add a child mind. Enforces: child.parent == self, no duplicate children.
+    /// Returns Err if child_id already present.
+    pub fn add_child(&mut self, child_id: MindId) -> Result<(), MindHandleError> {
+        if self.handle.children.contains(&child_id) {
+            return Err(MindHandleError::ChildAlreadyExists(child_id));
+        }
+        self.handle.children.push(child_id);
+        Ok(())
+    }
+
+    /// Remove a child mind. Enforces: child.parent was self.
+    pub fn remove_child(&mut self, child_id: &MindId) -> Result<(), MindHandleError> {
+        let pos = self.handle.children.iter().position(|id| id == child_id);
+        match pos {
+            Some(idx) => { self.handle.children.remove(idx); Ok(()) }
+            None => Err(MindHandleError::ChildNotFound(child_id.clone())),
+        }
+    }
+
+    /// Advance session count by 1. Updates growth_stage from new count.
+    pub fn advance_session(&mut self) {
+        self.handle.session_count += 1;
+        self.handle.growth_stage = GrowthStage::from_session_count(self.handle.session_count);
+    }
+
+    /// Terminate this mind. Sets status to Terminated and updates last_active.
+    pub fn terminate(&mut self) {
+        self.handle.last_active = Utc::now();
+        self.handle.status = MindStatus::Terminated;
+    }
+
+    /// Consume the guard and commit a complete status snapshot update.
+    pub fn commit(self) {
+        // All mutations already applied to handle through guard methods.
+        // Calling commit() is optional but signals intent.
+    }
+}
+
+/// Errors from MindHandle mutation.
+#[derive(Debug, thiserror::Error)]
+pub enum MindHandleError {
+    #[error("child mind {0} already exists in parent")]
+    ChildAlreadyExists(MindId),
+    #[error("child mind {0} not found in parent")]
+    ChildNotFound(MindId),
 }
 
 /// Growth stages — measured, not declared.

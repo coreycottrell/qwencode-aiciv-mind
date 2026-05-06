@@ -42,7 +42,7 @@ impl MindManager {
     /// Initialize the Primary mind. Called once at startup.
     pub fn init_primary(&mut self) -> MindId {
         let handle = MindHandle::new(Role::Primary, None, None);
-        let id = handle.id.clone();
+        let id = handle.id().clone();
         self.primary_id = Some(id.clone());
         self.minds.insert(id.clone(), handle);
         info!(mind_id = %id, "Primary mind initialized");
@@ -72,13 +72,22 @@ impl MindManager {
             Some(vertical.clone()),
             Some(primary_id.clone()),
         );
-        handle.status = MindStatus::Idle;
 
-        let id = handle.id.clone();
+        // Set initial status to Idle using guard
+        {
+            let mut guard = MindHandleGuard::new(&mut handle);
+            guard.update_status(MindStatus::Idle);
+        }
 
-        // Register as child of Primary
+        let id = handle.id().clone();
+
+        // Register as child of Primary via guard (enforces no-duplicate children)
         if let Some(primary) = self.minds.get_mut(primary_id) {
-            primary.children.push(id.clone());
+            let mut guard = MindHandleGuard::new(primary);
+            guard.add_child(id.clone()).map_err(|e| {
+                // This should not happen — we just created this mind, it can't already be a child
+                CoordinationError::InternalError(e.to_string())
+            })?;
         }
 
         // Build role enforcement
@@ -119,28 +128,36 @@ impl MindManager {
         let parent = self.minds.get(parent_id)
             .ok_or_else(|| CoordinationError::MindNotFound(parent_id.clone()))?;
 
-        if parent.role != Role::TeamLead {
+        if *parent.role() != Role::TeamLead {
             return Err(CoordinationError::InvalidSpawnRole {
-                spawner: parent.role,
+                spawner: parent.role().clone(),
                 attempted: Role::Agent,
             });
         }
 
-        let vertical = parent.vertical.clone();
+        let vertical = parent.vertical().cloned();
         let mut handle = MindHandle::new(
             Role::Agent,
             vertical,
             Some(parent_id.clone()),
         );
-        handle.status = MindStatus::Active {
-            task_id: uuid::Uuid::new_v4().to_string(),
-        };
 
-        let id = handle.id.clone();
+        // Set initial status to Active via guard
+        {
+            let mut guard = MindHandleGuard::new(&mut handle);
+            guard.update_status(MindStatus::Active {
+                task_id: uuid::Uuid::new_v4().to_string(),
+            });
+        }
 
-        // Register as child of team lead
+        let id = handle.id().clone();
+
+        // Register as child of team lead via guard (enforces no-duplicate children)
         if let Some(parent) = self.minds.get_mut(parent_id) {
-            parent.children.push(id.clone());
+            let mut guard = MindHandleGuard::new(parent);
+            guard.add_child(id.clone()).map_err(|e| {
+                CoordinationError::InternalError(e.to_string())
+            })?;
         }
 
         // Build the AGENTS.md path
@@ -182,12 +199,12 @@ impl MindManager {
             created_at: Utc::now(),
         };
 
-        // Update target status
+        // Update target status via guard (enforces last_active timestamp update)
         if let Some(target) = self.minds.get_mut(to) {
-            target.status = MindStatus::Active {
+            let mut guard = MindHandleGuard::new(target);
+            guard.update_status(MindStatus::Active {
                 task_id: task.id.clone(),
-            };
-            target.last_active = Utc::now();
+            });
         }
 
         self.active_tasks.insert(task.id.clone(), task.clone());
@@ -206,16 +223,17 @@ impl MindManager {
         let task = self.active_tasks.remove(&result.task_id)
             .ok_or_else(|| CoordinationError::TaskNotFound(result.task_id.clone()))?;
 
-        // Update the completing mind's status
+        // Update the completing mind's status via guard
         if let Some(mind) = self.minds.get_mut(&result.mind_id) {
-            mind.status = MindStatus::Idle;
-            mind.last_active = Utc::now();
+            let mut guard = MindHandleGuard::new(mind);
+            guard.update_status(MindStatus::Idle);
         }
 
-        // Notify the source mind
+        // Notify the source mind via guard
         if let Some(source) = self.minds.get_mut(&task.source) {
-            if let MindStatus::WaitingForResult { .. } = &source.status {
-                source.status = MindStatus::Idle;
+            let mut guard = MindHandleGuard::new(source);
+            if matches!(guard.status(), MindStatus::WaitingForResult { .. }) {
+                guard.update_status(MindStatus::Idle);
             }
         }
 
@@ -230,18 +248,18 @@ impl MindManager {
 
     /// Shutdown a specific mind gracefully.
     pub fn shutdown_mind(&mut self, mind_id: &MindId) -> Result<(), CoordinationError> {
-        // First pass: read-only — collect children and parent info
+        // First pass: read-only — collect children and parent info via accessors
         let (children_ids, parent_id) = {
             let mind = self.minds.get(mind_id)
                 .ok_or_else(|| CoordinationError::MindNotFound(mind_id.clone()))?;
-            (mind.children.clone(), mind.parent.clone())
+            (mind.children().to_vec(), mind.parent().cloned())
         };
 
         // Check for active children (read-only access)
         let active_children: Vec<_> = children_ids.iter()
             .filter(|c| {
                 self.minds.get(*c)
-                    .is_some_and(|m| m.status != MindStatus::Terminated)
+                    .is_some_and(|m| *m.status() != MindStatus::Terminated)
             })
             .cloned()
             .collect();
@@ -258,15 +276,19 @@ impl MindManager {
             });
         }
 
-        // Second pass: mutate — terminate the mind
+        // Second pass: mutate — terminate the mind using guard
         if let Some(mind) = self.minds.get_mut(mind_id) {
-            mind.status = MindStatus::Terminated;
+            let mut guard = MindHandleGuard::new(mind);
+            guard.terminate();
         }
 
-        // Third pass: mutate — remove from parent's children list
+        // Third pass: mutate — remove from parent's children list using guard
         if let Some(parent_id) = &parent_id {
             if let Some(parent) = self.minds.get_mut(parent_id) {
-                parent.children.retain(|c| c != mind_id);
+                let mut guard = MindHandleGuard::new(parent);
+                guard.remove_child(mind_id).map_err(|e| {
+                    CoordinationError::InternalError(e.to_string())
+                })?;
             }
         }
 
@@ -287,9 +309,9 @@ impl MindManager {
     /// Find the team lead for a given vertical.
     pub fn find_team_lead(&self, vertical: &Vertical) -> Option<&MindHandle> {
         self.minds.values().find(|m| {
-            m.role == Role::TeamLead
-                && m.vertical.as_ref() == Some(vertical)
-                && m.status != MindStatus::Terminated
+            *m.role() == Role::TeamLead
+                && m.vertical() == Some(vertical)
+                && *m.status() != MindStatus::Terminated
         })
     }
 
@@ -301,7 +323,7 @@ impl MindManager {
     /// Count active minds by role.
     pub fn count_by_role(&self, role: Role) -> usize {
         self.minds.values()
-            .filter(|m| m.role == role && m.status != MindStatus::Terminated)
+            .filter(|m| *m.role() == role && *m.status() != MindStatus::Terminated)
             .count()
     }
 
@@ -355,6 +377,9 @@ pub enum CoordinationError {
 
     #[error("Cannot shutdown mind {mind_id} with active children: {children:?}")]
     ActiveChildren { mind_id: MindId, children: Vec<MindId> },
+
+    #[error("Internal error: {0}")]
+    InternalError(String),
 }
 
 #[cfg(test)]
@@ -383,7 +408,7 @@ mod tests {
 
         // Primary should have the team lead as a child
         let primary = mm.get_mind(&MindId("primary".into())).unwrap();
-        assert!(primary.children.contains(&id));
+        assert!(primary.children().contains(&id));
     }
 
     #[test]
@@ -404,7 +429,7 @@ mod tests {
 
         assert_eq!(mm.count_by_role(Role::Agent), 1);
         let lead = mm.get_mind(&lead_id).unwrap();
-        assert!(lead.children.contains(&agent_id));
+        assert!(lead.children().contains(&agent_id));
     }
 
     #[test]
@@ -424,7 +449,7 @@ mod tests {
 
         assert!(!task.id.is_empty());
         let lead = mm.get_mind(&lead_id).unwrap();
-        assert!(matches!(lead.status, MindStatus::Active { .. }));
+        assert!(matches!(lead.status(), MindStatus::Active { .. }));
     }
 
     #[test]
@@ -445,7 +470,7 @@ mod tests {
 
         mm.complete_task(result).unwrap();
         let lead = mm.get_mind(&lead_id).unwrap();
-        assert_eq!(lead.status, MindStatus::Idle);
+        assert_eq!(*lead.status(), MindStatus::Idle);
     }
 
     #[test]
