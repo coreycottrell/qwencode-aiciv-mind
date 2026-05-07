@@ -235,7 +235,9 @@ def _assert_transcription_not_paraphrase():
     Raises:
         ChapterSummarizerError: If skill is missing, version < v1.1, or missing Test 5
     """
+    import hashlib
     import logging
+    import subprocess
     from pathlib import Path
 
     logger = logging.getLogger(__name__)
@@ -257,6 +259,47 @@ def _assert_transcription_not_paraphrase():
             "transcription-not-paraphrase v1.1 requires Test 5 (connector-smoothing doctrine). "
             "Missing Test 5 — cannot generate chapter."
         )
+
+    # ──────────────────────────────────────────────────────────────
+    # OPTION C — SHA drift detection via skill-evolution-tracker
+    # ──────────────────────────────────────────────────────────────
+    current_sha = hashlib.sha256(skill_path.read_bytes()).hexdigest()[:16]
+    marker_path = Path("memories/skills/transcription-not-paraphrase.sha")
+    prev_sha = marker_path.read_text().strip() if marker_path.exists() else ""
+
+    if prev_sha and prev_sha != current_sha:
+        # Drift detected — log it
+        logger.warning(
+            f"transcription-not-paraphrase SHA DRIFT detected: "
+            f"prev={prev_sha[:8]}... curr={current_sha[:8]}... — logging to skill-evolution-tracker"
+        )
+        try:
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).parent.parent.parent / "skills" / "skill-evolution-tracker" / "skill_evolution_tracker.py"),
+                    "log",
+                    "transcription-not-paraphrase",
+                    "--context",
+                    f"SHA drift: prev={prev_sha[:8]}... curr={current_sha[:8]}...",
+                    "--outcome",
+                    "pass",
+                    "--civ",
+                    "hengshi",
+                    "--log",
+                    "memories/skills-usage-log.jsonl",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+        except Exception as e:
+            logger.error(f"skill-evolution-tracker log failed: {e}")
+
+    # Always update marker file
+    marker_path.parent.mkdir(parents=True, exist_ok=True)
+    marker_path.write_text(current_sha)
+
     logger.info("transcription-not-paraphrase v1.1.0 loaded — all 5 tests active")
 
 
@@ -343,7 +386,18 @@ Output JSON only, no markdown fences."""
 
 
 def chapter_to_markdown(draft: ChapterDraft) -> str:
-    """Convert ChapterDraft to readable markdown."""
+    """Convert ChapterDraft to readable markdown.
+
+    FORBIDDEN_PATHS: This function must not be called on a cached ChapterDraft
+    that has not passed _assert_transcription_not_paraphrase(). chapter_to_markdown()
+    is an OUTPUT transformation — the pre-flight must have been run on the input.
+    Calling this on an unchecked draft bypasses the verbatim preservation assertion.
+    """
+    # ───────────────────────────────────────────────────────────────────
+    # PRE-FLIGHT: transcription-not-paraphrase v1.1 must have been run
+    # ───────────────────────────────────────────────────────────────────
+    _assert_transcription_not_paraphrase()
+
     lines = [
         f"# {draft.title}",
         "",
