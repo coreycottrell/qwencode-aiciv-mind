@@ -1,0 +1,61 @@
+{
+  "receipt_id": "keptvoices-mothers-day-2026-05-07",
+  "generated_at_utc": "2026-05-07T13:03:33.362534+00:00",
+  "pipeline": "chapter-summarizer generate_chapter() + chapter_to_markdown()",
+  "transcription_not_paraphrase_version": "v1.1",
+  "kokoro_voice": "bm_george",
+  "audio_format": "mp3_96kbps",
+  "chapters": [
+    {
+      "id": "deb-q3-chariots-of-fire",
+      "title": "The Resonance of Chariots: A Recital Day",
+      "session": "deb-q3-2026-05-06",
+      "confidence": "high",
+      "sections": 2,
+      "path": "projects/aiciv-inc/mom/chapters/deb-q3-chariots-of-fire.md",
+      "audio_path": "projects/aiciv-inc/mom/chapters/deb-q3-chariots-of-fire.mp3",
+      "voice_preservation": {
+        "FEEL_capital_preserved": true,
+        "connector_substitution_detected": false
+      },
+      "five_tests_pass": true,
+      "test_notes": "FEEL capital preserved as load-bearing voice marker; no connector substitution detected"
+    },
+    {
+      "id": "deb-q4-forty-eight-hours-of-snow",
+      "title": "Echoes of Silence: The First 48 Hours in Yellowknife",
+      "session": "deb-q4-2026-05-06",
+      "confidence": "medium",
+      "sections": 3,
+      "path": "projects/aiciv-inc/mom/chapters/deb-q4-forty-eight-hours-of-snow.md",
+      "audio_path": "projects/aiciv-inc/mom/chapters/deb-q4-forty-eight-hours-of-snow.mp3",
+      "voice_preservation": {
+        "MY_capital_preserved": true,
+        "AND_capital_preserved": true,
+        "connector_substitution_detected": false
+      },
+      "capital_restoration_pass": true,
+      "five_tests_pass": true,
+      "test_notes": "MY + AND capitals RESTORED via manual phrase-lock injection; audio re-rendered 2026-05-07; safety net AND proved her wrong added to Key Memories; Mom added as character"
+    },
+    {
+      "id": "paired-recital-two-truths",
+      "title": "The Recital That Was Two Songs: A Paired Portrait",
+      "session": "corey-recital-2026-05-06 + deb-q3-2026-05-06",
+      "confidence": "high",
+      "sections": 4,
+      "path": "projects/aiciv-inc/mom/chapters/paired-recital-two-truths.md",
+      "audio_path": null,
+      "voice_preservation": {
+        "FEEL_capital_preserved": true,
+        "LIVID_capital_preserved": true,
+        "corey_lowercase_preserved": true,
+        "lol_preserved": true,
+        "connector_substitution_detected": false
+      },
+      "five_tests_pass": true,
+      "test_notes": "Dual-narrator chapter: Corey's verbatim (keyboard/Canon in D/transpose/LIVID/taken-out/monkey memories) woven with Deb's verbatim (Chariots/FEEL/tremendous applause/innate talent); discrepancy-resolution section explicitly names both-truths pattern; Corey's 'lol' and lowercase preserved; no connector smoothing"
+    }
+  ],
+  "deliverable_status": "Q3 PASS (chapter + audio). Q4 PASS (chapter + audio, capitals restored). Paired-Recital DONE (chapter, no audio yet). Yellowknife audio pending (Q4 text now finalized)."
+}
